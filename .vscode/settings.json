@@ -1,0 +1,13 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/Users/fitji/Documents/workspace/C-projects/newboy/bin",
+            "binaryPath": "/Users/fitji/Documents/workspace/C-projects/newboy/bin/cocoaApp",
+            "binaryArgs": []
+        }
+    ],
+    "files.associations": {
+        "*.h": "objective-c"
+    },
+    "lldb.displayFormat": "hex"
+}

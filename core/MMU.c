@@ -1,0 +1,334 @@
+#include "MMU.h"
+#include "Bios.h"
+#include "definitions.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr);
+void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value);
+
+Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
+    switch (addr & 0xF000) {
+        // MARK: ROM bank or BIOS
+        case 0x0000:
+            if(mem->in_bios) {
+                if(addr >= 0x100) {
+                    // trying to access cartridge header
+                    // we should leave the BIOS now
+                    //mem->in_bios = false;
+                    unsigned char txt = mem->rom[addr];
+                    return txt;
+                }
+                return  mem->bios[addr];
+            } else {
+                return mem->rom[addr];
+            }
+        case 0x1000: case 0x2000: case 0x3000:
+            return mem->rom[addr];
+        case 0x4000: case 0x5000: case 0x6000: case 0x7000:
+            return mem->rom[addr]; //TODO: handle ROM Bank switch here
+
+        // MARK: VRAM
+        case 0x8000: case 0x9000:
+            return GB_ppu_vRam_read(&mem->ppu, addr);
+        // MARK: External RAM
+        case 0xA000: case 0xB000:
+            return mem->eRam[addr & 0x1FFF]; // TODO: handle Switch
+        // MARK: Work RAM and echo
+        case 0xC000: case 0xD000: case 0xE000:
+            return mem->wRam[addr & 0x1FFF];
+        case 0xF000:
+            switch (addr & 0x0F00) {
+                // Echo RAM
+                case 0x000: case 0x100: case 0x200: case 0x300:
+                case 0x400: case 0x500: case 0x600: case 0x700:
+                case 0x800: case 0x900: case 0xA00: case 0xB00:
+                case 0xC00: case 0xD00:
+                    return mem->wRam[addr & 0x1FFF];
+                
+                // Graphics: MARK: OAM
+                case 0xE00:
+                    // OAM is 0xA0 bytes, remaining bytes read as 0
+                    if(addr < 0xFEA0) {
+                        return mem->ppu.oam[addr & 0xFF];
+                    }
+                    return 0;
+                		    // Zero-page
+                case 0xF00:
+                    if(addr >= 0xFF80) {
+			            return mem->zRam[addr & 0x7F];
+			        } else if(addr == 0xFF50) {
+                        return mem->in_bios;
+                    }  else if (addr == 0xFF4D) {
+                        return mem->KEY1;
+                    } else {
+			            // I/O registers
+			            // TODO: handle I/O read here
+                        switch (addr & 0xF0) {
+                            case 0x00:
+                                return GB_mmu_read_FF00(mem, addr);
+                            case 0x10: case 0x20: case 0x30:
+                                break;
+                            case 0x40:
+                                return GB_ppu_IO_read(&mem->ppu, addr);
+                            
+                        }
+			            return 0;
+			        }
+            }
+    }
+    return 0;
+}
+
+Word GB_mmu_read_word(GB_mmu* mem, Word addr) {
+    Word strongByte = GB_mmu_read_byte(mem, addr+1);
+    return  (strongByte << 8) + GB_mmu_read_byte(mem, addr);
+}
+
+void GB_mmu_OAM_DMA(GB_mmu* mem, Byte data) {
+    mem->ppu.dmaValue = data;
+    Word addr = ((Word)data) * 0x100;
+    for (int delta = 0; delta < 0xA0; delta++) {
+        Word copyAddr = addr + delta;
+        mem->ppu.oam[delta] = GB_mmu_read_byte(mem, copyAddr);
+    }
+}
+
+void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
+    switch (addr & 0xF000) {
+        case 0x0000: case 0x1000: case 0x2000: case 0x3000: case 0x4000:
+        case 0x5000: case 0x6000: case 0x7000:
+            break; // TODO: Handle MBCs to define behavior
+        case 0x8000: case 0x9000:
+            GB_ppu_vRam_write(&mem->ppu, addr, value);
+            break;
+        case 0xA000: case 0xB000:
+            mem->eRam[addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
+            break;
+        // Work RAM and echo
+        case 0xC000: case 0xD000: case 0xE000:
+            mem->wRam[addr & 0x1FFF] = value;
+	        break;
+        case 0xF000:
+            switch (addr & 0x0F00) {
+                // Echo RAM
+                case 0x000: case 0x100: case 0x200: case 0x300:
+                case 0x400: case 0x500: case 0x600: case 0x700:
+                case 0x800: case 0x900: case 0xA00: case 0xB00:
+                case 0xC00: case 0xD00:
+                    mem->wRam[addr & 0x1FFF] = value;
+                    break;
+                
+                // Graphics: MARK: OAM
+                case 0xE00:
+                    // OAM is 0xA0 bytes, remaining bytes read as 0
+                    if(addr < 0xFEA0) {
+                        mem->ppu.oam[addr & 0xFF] = value;
+                    }
+                    break;
+                // Zero-page
+                case 0xF00:
+                    if(addr == 0xFFFF) { 
+                        // TODO: Handle interrups
+                    } else if (addr > 0xFF7F) {
+                        mem->zRam[addr & 0x7F] = value;
+                    } else if (addr == 0xFF46) {
+                        GB_mmu_OAM_DMA(mem, value);
+                    } else if (addr == 0xFF50) {
+                        mem->in_bios = (value > 0) ? true : false;
+                    } else if (addr == 0xFF4D) {
+                        mem->KEY1 = value;
+                    } else {
+                        // TODO: Handle I/O Ranges
+                        switch (addr & 0xF0) {
+                            case 0x00:
+                                GB_mmu_write_FF00(mem, addr, value);
+                                break;
+                            case 0x10: case 0x20: case 0x30:
+                                break;
+                            case 0x40:
+                                GB_ppu_IO_write(&mem->ppu, addr, value);
+                        }
+                    }
+                    break;
+            }
+    }
+}
+
+void GB_mmu_write_word(GB_mmu* mem, Word addr, Word value) {
+    GB_mmu_write_byte(mem, addr, value & 0xff);
+    GB_mmu_write_byte(mem, addr + 1, value >> 8);
+}
+
+u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize) {
+    switch (rawRomSize)
+    {
+    case 0:
+        return 0x7fff; // 32 Kib
+    case 1:
+        return 0x7fff * 2; // 64 Kib;
+    case 2:
+        return 0x7fff * 4; // 128 Kib;
+    case 3:
+        return 0x7fff * 8; // 256 Kib;
+    case 4:
+        return 0x7fff * 16; // 512 Kib;
+    case 5:
+        return 0x7fff * 32; // 1 Mib;
+    case 6:
+        return 0x7fff * 64; // 2 Mib;
+    case 7:
+        return 0x7fff * 128; // 4 Mib;
+    case 8:
+        return 0x7fff * 256; // 8 Mib;
+    default:
+        return 0x7fff; // 32 Kib
+    };
+}
+
+u_int32_t GB_cartridgeRamSize(u_int8_t rawRamSize) {
+    switch (rawRamSize)
+    {
+    case 2:
+        return 0x2000; // 8Kib
+    case 3:
+        return 0x8000; // 32Kib
+    case 4:
+        return 0x20000; // 128Kib
+    case 5:
+        return 0x10000; // 64Kib
+    default:
+        return 0; // No RAM
+    };
+}
+
+int GB_mmu_load(GB_mmu* mem, const char* filePath) {
+    FILE *cartridgeFile = fopen(filePath, "rb");
+    if(cartridgeFile == NULL) {
+        fclose(cartridgeFile);
+        return GB_CARTRIDGE_FILE_ERROR;
+    }
+
+    if(fseek(cartridgeFile, GB_CARTRIDGE_NAME, SEEK_SET) != 0) {
+        fclose(cartridgeFile);
+        return GB_CARTRIDGE_FILE_ERROR;
+    }
+    char title[0x10];
+    fread(title, 1, 0x10, cartridgeFile);
+    if(fseek(cartridgeFile, GB_CARTRIDGE_TYPE, SEEK_SET) != 0) {
+        fclose(cartridgeFile);
+        return GB_CARTRIDGE_FILE_ERROR;
+    }
+    u_int8_t rawCartType;
+    fread(&rawCartType, 1, 1, cartridgeFile);
+    if(fseek(cartridgeFile, GB_CARTRIDGE_ROM_SIZE, SEEK_SET) != 0) {
+        fclose(cartridgeFile);
+        return GB_CARTRIDGE_FILE_ERROR;
+    }
+
+    u_int8_t rawRomSize;
+    fread(&rawRomSize, 1, 1, cartridgeFile);
+    u_int32_t romSize = GB_cartridgeRomSize(rawRomSize);
+    if(fseek(cartridgeFile, GB_CARTRIDGE_RAM_SIZE, SEEK_SET) != 0) {
+        fclose(cartridgeFile);
+        return GB_CARTRIDGE_FILE_ERROR;
+    }
+    u_int8_t rawRamSize;
+    fread(&rawRamSize, 1, 1, cartridgeFile);
+    u_int32_t ramSize = GB_cartridgeRamSize(rawRamSize);
+
+    mem->rom = (u_int8_t *) malloc(romSize);
+
+    fseek(cartridgeFile, 0, SEEK_SET);
+    fread(mem->rom, romSize, 1, cartridgeFile);
+
+    // Handle eRam sizes
+
+    fclose(cartridgeFile);
+    return GB_CARTRIDGE_SUCCESS;
+}
+
+Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
+    int localAddress = addr & 0xFF;
+    switch (localAddress) {
+        case 0x01:
+            return mem->sb;
+        case 0x02:
+            return  mem->sc;
+        case 0x04:
+            return mem->div;
+        case 0x05:
+            return mem->tima;
+        case 0x06:
+            return mem->tma;
+        case 0x07:
+            return mem->tac;
+        case 0x0F:
+            return mem->interruptRequest;
+    }
+    return 0;
+}
+
+GBTimaClockCycles GBTimaClockCyclesFromInt(int value) {
+    switch (value & 0x3) {
+        case 0:
+            return GBTimaClockCycles256;
+        case 1:
+            return GBTimaClockCycles4;
+        case 2:
+            return GBTimaClockCycles16;
+        case 3:
+            return GBTimaClockCycles64;
+        default:
+            return GBTimaClockCycles4;
+    }
+}
+
+void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
+    int localAddress = addr & 0xFF;
+    switch (localAddress) {
+        case 0x01:
+            mem->sb = value;
+        case 0x02:
+            mem->sc = value;
+        case 0x04:
+            mem->div = 0;
+        case 0x05:
+            mem->tima = value;
+        case 0x06:
+            mem->tma = value;
+        case 0x07:
+            mem->tac = value;
+            mem->isTimaEnabled = ((value & 0x4) > 0)? true : false;
+            mem->timaClockCycles = GBTimaClockCyclesFromInt(value);
+        case 0x0F:
+            mem->interruptRequest = value;
+    }
+}
+
+void GB_mmu_reset(GB_mmu* mem) {
+    mem->in_bios = true;
+    memcpy(mem->bios, GBDMGBios, GBDMGBiosLength);
+    if(mem->rom != NULL) {
+        free(mem->rom);
+        mem->rom = NULL;
+    }
+    memset(mem->eRam, 0, 0x2000);
+    memset(mem->wRam, 0, 0x2000);
+    memset(mem->zRam, 0, 0x80);
+
+    mem->sb = 0;
+    mem->sc = 0;
+    mem->div = 0;
+    mem->isTimaEnabled = false;
+    mem->timaClockCycles = GBTimaClockCycles4;
+    mem->tima = 0;
+    mem->tma = 0;
+    mem->tac = 0;
+    mem->interruptRequest = 0;
+    mem->KEY1 = 0;
+    GB_ppu_reset(&mem->ppu);
+}

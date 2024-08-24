@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "🚀 Launch",
+            "program": "${workspaceRoot}/bin/NewBoy.app",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "make cocoa app"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "✅ Test",
+            "program": "${workspaceRoot}/bin/tests",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "make tests"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "🧹 clean",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "clean"
+        }
+    ]
+}
