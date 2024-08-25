@@ -2,6 +2,7 @@
 #include "MMU.h"
 #include "definitions.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define FLAG_ZERO                 0x80
@@ -143,10 +144,19 @@ Byte ins_ld_sp_xx(GB_cpu *self) { self->registers.sp = GB_cpu_fetch_word(self, 1
 Byte ins_ld_sp_hl(GB_cpu *self) { self->registers.sp = GB_register_get_HL(self); PC_INC(self, 1); return 8; }
 
 Byte ins_ld_hl_spx(GB_cpu *self) {
-    char x = GB_cpu_fetch_byte(self, 1);
-    Byte value = self->registers.sp + x; 
-    self->registers.f =  HalfCarryFlagValue(self->registers.sp, x) | CarryFlagValueAdd(value, self->registers.sp, x); 
-    GB_register_set_HL(self, value); PC_INC(self, 2);  return 12; 
+    int16_t offset = (int8_t) GB_cpu_fetch_byte(self, 1);
+    GB_register_set_HL(self, self->registers.sp + offset);
+    self->registers.f = 0;
+
+    if ((self->registers.sp & 0xF) + (offset & 0xF) > 0xF) {
+        self->registers.f |= FLAG_HALF;
+    }
+
+    if ((self->registers.sp & 0xFF)  + (offset & 0xFF) > 0xFF) {
+        self->registers.f |= FLAG_CARRY;
+    }
+    PC_INC(self, 2);  
+    return 12; 
 }
 
 Byte ins_ld_bc_a(GB_cpu *self) { GB_mmu_write_byte(&self->memory,GB_register_get_BC(self), self->registers.a); PC_INC(self, 1);  return 8; }
@@ -615,7 +625,7 @@ Byte ins_add_hl_bc(GB_cpu *self) {
     Word x1 = GB_register_get_HL(self), x2 = GB_register_get_BC(self);
     Word value = x1 + x2;
     GB_register_set_HL(self, value);
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
     PC_INC(self, 1);
     return 8; 
 }
@@ -623,7 +633,7 @@ Byte ins_add_hl_de(GB_cpu *self) {
     Word x1 = GB_register_get_HL(self), x2 = GB_register_get_DE(self);
     Word value = x1 + x2;
     GB_register_set_HL(self, value);
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
     PC_INC(self, 1);
     return 8; 
 }
@@ -631,7 +641,7 @@ Byte ins_add_hl_hl(GB_cpu *self) {
     Word x1 = GB_register_get_HL(self);
     Word value = x1 + x1;
     GB_register_set_HL(self, value);
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValueW(x1, x1) | CarryFlagValueAdd(value, x1, x1);
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValueW(x1, x1) | CarryFlagValueAdd(value, x1, x1);
     PC_INC(self, 1);
     return 8;
 }
@@ -639,56 +649,56 @@ Byte ins_add_hl_sp(GB_cpu *self) {
     Word x1 = GB_register_get_HL(self), x2 = self->registers.sp;
     Word value = x1 + x2;
     GB_register_set_HL(self, value);
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValueW(x1, x2) | CarryFlagValueAdd(value, x1, x2);
     PC_INC(self, 1);
     return 8;
 }
 
 Byte ins_add_a_a(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.a; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.a) | CarryFlagValueAdd(value, self->registers.a, self->registers.a); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.a) | CarryFlagValueAdd(value, self->registers.a, self->registers.a); 
     self->registers.a = value; 
     PC_INC(self, 1); 
     return 4; 
 }
 Byte ins_add_a_b(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.b; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.b) | CarryFlagValueAdd(value, self->registers.a, self->registers.b); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.b) | CarryFlagValueAdd(value, self->registers.a, self->registers.b); 
     self->registers.a = value; 
     PC_INC(self, 1); 
     return 4; 
 }
 Byte ins_add_a_c(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.c; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.c) | CarryFlagValueAdd(value, self->registers.a, self->registers.c); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.c) | CarryFlagValueAdd(value, self->registers.a, self->registers.c); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
 }
 Byte ins_add_a_d(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.d; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.d) | CarryFlagValueAdd(value, self->registers.a, self->registers.d); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.d) | CarryFlagValueAdd(value, self->registers.a, self->registers.d); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
 }
 Byte ins_add_a_e(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.e; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.e) | CarryFlagValueAdd(value, self->registers.a, self->registers.e); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.e) | CarryFlagValueAdd(value, self->registers.a, self->registers.e); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
 }
 Byte ins_add_a_h(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.h; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.h) | CarryFlagValueAdd(value, self->registers.a, self->registers.h); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.h) | CarryFlagValueAdd(value, self->registers.a, self->registers.h); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
 }
 Byte ins_add_a_l(GB_cpu *self) { 
     Byte value = self->registers.a + self->registers.l; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, self->registers.l) | CarryFlagValueAdd(value, self->registers.a, self->registers.l); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, self->registers.l) | CarryFlagValueAdd(value, self->registers.a, self->registers.l); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
@@ -696,7 +706,7 @@ Byte ins_add_a_l(GB_cpu *self) {
 Byte ins_add_a_hl(GB_cpu *self) { 
     Byte hlValue =  GB_mmu_read_byte(&self->memory, GB_register_get_HL(self));
     Byte value = self->registers.a + hlValue; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, hlValue) | CarryFlagValueAdd(value, self->registers.a, hlValue); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, hlValue) | CarryFlagValueAdd(value, self->registers.a, hlValue); 
     self->registers.a = value;
     PC_INC(self, 1);
     return 4; 
@@ -704,16 +714,25 @@ Byte ins_add_a_hl(GB_cpu *self) {
 Byte ins_add_a_x(GB_cpu *self) { 
     Byte x = GB_cpu_fetch_byte(self, 1);
     Byte value = self->registers.a + x; 
-    self->registers.f = ZeroFlagValue(value) | HalfCarryFlagValue(self->registers.a, x) | CarryFlagValueAdd(value, self->registers.a, x); 
+    self->registers.f = (self->registers.f & FLAG_ZERO) | HalfCarryFlagValue(self->registers.a, x) | CarryFlagValueAdd(value, self->registers.a, x); 
     self->registers.a = value;
     PC_INC(self, 2);
     return 4; 
 }
 Byte ins_add_sp_x(GB_cpu *self) { 
-    Byte x = GB_cpu_fetch_byte(self, 1);
-    Byte value = self->registers.sp + x; 
-    self->registers.f = HalfCarryFlagValue(self->registers.sp, x) | CarryFlagValueAdd(value, self->registers.sp, x); 
-    self->registers.sp = value;
+    int16_t offset = (int8_t) GB_cpu_fetch_byte(self, 1);
+    Word sp = self->registers.sp;
+    self->registers.sp += offset;
+
+    self->registers.f = 0;
+
+    /* A new instruction, a new meaning for Half Carry! Thanks Sameboy */
+    if ((sp & 0xF) + (offset & 0xF) > 0xF) {
+       self->registers.f |= FLAG_HALF;
+    }
+    if ((sp & 0xFF) + (offset & 0xFF) > 0xFF)  {
+        self->registers.f |= FLAG_CARRY;
+    }
     PC_INC(self, 2);
     return 16; 
 }

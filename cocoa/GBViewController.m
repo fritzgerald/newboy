@@ -41,8 +41,8 @@
             unsigned char sb = GB_mmu_read_byte(&cpu.memory, 0xFF01);
             GB_mmu_write_byte(&cpu.memory, 0xFF02, 0x01);
             console[strIdx] = sb;
-            NSLog(@"%@", [NSString stringWithCString:&sb length:1]);
-            //printf("%c", sb);
+            //NSLog(@"%@", [NSString stringWithCString:&sb length:1]);
+            printf("%c", sb);
             strIdx++;
         }
     }
