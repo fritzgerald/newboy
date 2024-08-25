@@ -31,7 +31,7 @@ Word GB_register_get_HL(GB_cpu *cpu) {
 
 void GB_register_set_AF(GB_cpu *cpu, Word value) {
     cpu->registers.a = (value & 0xFF00) >> 8;
-    cpu->registers.f = (value & 0xFF);
+    cpu->registers.f = (value & 0xF0);
 }
 
 void GB_register_set_BC(GB_cpu *cpu, Word value) {
@@ -370,27 +370,50 @@ Byte ins_rl_hl (GB_cpu *self) {
     return 16; 
 }
 
-Byte ins_rra (GB_cpu *self)  { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.a & 0x01)); self->registers.a = (self->registers.a >> 1) | oldC << 3; self->registers.f = ZeroFlagValue(self->registers.a) | (lbit << 4); PC_INC(self, 1); return 4; }
+Byte ins_rra (GB_cpu *self)  { 
+    Byte oldC = GB_cpu_get_carry_flag_bit(self);
+    Byte lbit = (self->registers.a & 0x01);
+    
+    self->registers.a = self->registers.a >> 1;
+    self->registers.f = 0;
+    if (oldC) {
+        self->registers.a |= 0x80;
+    }
+    if (lbit) {
+        self->registers.f |= FLAG_CARRY;
+    }
+    PC_INC(self, 1); 
+    return 4; 
+}
 
-Byte ins_rr_a (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.a & 0x01)); self->registers.a = (self->registers.a >> 1) | lbit << 7; self->registers.f = ZeroFlagValue(self->registers.a) | (lbit << 4); PC_INC(self, 2); return 8; }
-Byte ins_rr_b (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.b & 0x01)); self->registers.b = (self->registers.b >> 1) | lbit << 7; self->registers.f = ZeroFlagValue(self->registers.b) | (lbit << 4); PC_INC(self, 2); return 8; }
-Byte ins_rr_c (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.c & 0x01)); self->registers.c = (self->registers.c >> 1) | lbit << 7; self->registers.f = ZeroFlagValue(self->registers.c) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_a (GB_cpu *self) { bool cary = GB_cpu_get_carry_flag_bit(self); bool lbit = (self->registers.a & 0x01) != 0; self->registers.a = (self->registers.a >> 1) | (cary << 7); self->registers.f = ZeroFlagValue(self->registers.a) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_b (GB_cpu *self) { bool cary = GB_cpu_get_carry_flag_bit(self); bool lbit = (self->registers.b & 0x01) != 0; self->registers.b = (self->registers.b >> 1) | (cary << 7); self->registers.f = ZeroFlagValue(self->registers.b) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_c (GB_cpu *self) { 
+    bool lbit = (self->registers.c & 0x01) != 0;
+    bool cary = GB_cpu_get_carry_flag_bit(self);
+    self->registers.c = (self->registers.c >> 1) | (cary << 7); 
+    self->registers.f = ZeroFlagValue(self->registers.c) | (lbit << 4); 
+    PC_INC(self, 2); 
+    return 8;
+}
 Byte ins_rr_d (GB_cpu *self) 
-{ 
-    Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = (self->registers.d & 0x01); 
-    self->registers.d = (self->registers.d >> 1) | lbit << 7; 
+{
+    bool cary = GB_cpu_get_carry_flag_bit(self);
+    bool lbit = (self->registers.d & 0x01) != 0; 
+    self->registers.d = (self->registers.d >> 1) | (cary << 7); 
     self->registers.f = ZeroFlagValue(self->registers.d) | (lbit << 4); 
     PC_INC(self, 2); 
     return 8; 
 }
-Byte ins_rr_e (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.e & 0x01)); self->registers.e = (self->registers.e >> 1) | oldC << 7; self->registers.f = ZeroFlagValue(self->registers.e) | (lbit << 4); PC_INC(self, 2); return 8; }
-Byte ins_rr_h (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.h & 0x01)); self->registers.h = (self->registers.h >> 1) | oldC << 7; self->registers.f = ZeroFlagValue(self->registers.h) | (lbit << 4); PC_INC(self, 2); return 8; }
-Byte ins_rr_l (GB_cpu *self) { Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((self->registers.l & 0x01)); self->registers.l = (self->registers.l >> 1) | oldC << 7; self->registers.f = ZeroFlagValue(self->registers.l) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_e (GB_cpu *self) { bool cary = GB_cpu_get_carry_flag_bit(self); bool lbit = (self->registers.e & 0x01) != 0; self->registers.e = (self->registers.e >> 1) | (cary << 7); self->registers.f = ZeroFlagValue(self->registers.e) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_h (GB_cpu *self) { bool cary = GB_cpu_get_carry_flag_bit(self); bool lbit = (self->registers.h & 0x01) != 0; self->registers.h = (self->registers.h >> 1) | (cary << 7); self->registers.f = ZeroFlagValue(self->registers.h) | (lbit << 4); PC_INC(self, 2); return 8; }
+Byte ins_rr_l (GB_cpu *self) { bool cary = GB_cpu_get_carry_flag_bit(self); bool lbit = (self->registers.l & 0x01) != 0; self->registers.l = (self->registers.l >> 1) | (cary << 7); self->registers.f = ZeroFlagValue(self->registers.l) | (lbit << 4); PC_INC(self, 2); return 8; }
 Byte ins_rr_hl (GB_cpu *self) { 
     Word hl = GB_register_get_HL(self); 
     Byte value = GB_mmu_read_byte(&self->memory, hl); 
-    Byte oldC = GB_cpu_get_carry_flag_bit(self), lbit = ((value & 0x01)); 
-    value = (value >> 1) | lbit << 7; 
+    bool cary = GB_cpu_get_carry_flag_bit(self);
+    bool lbit = (value & 0x01) != 0; 
+    value = (value >> 1) | (cary << 7); 
     self->registers.f = ZeroFlagValue(value) | (lbit << 4); 
     GB_mmu_write_byte(&self->memory,hl, value);
     PC_INC(self, 2); 
@@ -416,7 +439,13 @@ Byte ins_sra_l (GB_cpu *self) { Byte hBit = self->registers.l & 0x1; self->regis
 Byte ins_sra_hl (GB_cpu *self) { Word hl = GB_register_get_HL(self); Byte value = GB_mmu_read_byte(&self->memory, hl); Byte hBit = value & 0x1; value = value >> 1; self->registers.f = ZeroFlagValue(value) | (hBit << 4); GB_mmu_write_byte(&self->memory,hl, value); PC_INC(self, 2); return 16; }
 
 Byte ins_srl_a (GB_cpu *self) { Byte lBit = self->registers.a & 0x01; self->registers.a = self->registers.a >> 1; self->registers.f = ZeroFlagValue(self->registers.a) | (lBit << 4); PC_INC(self, 2); return 8; }
-Byte ins_srl_b (GB_cpu *self) { Byte lBit = self->registers.b & 0x01; self->registers.b = self->registers.b >> 1; self->registers.f = ZeroFlagValue(self->registers.b) | (lBit << 4); PC_INC(self, 2); return 8; }
+Byte ins_srl_b (GB_cpu *self) { 
+    Byte lBit = self->registers.b & 0x01; 
+    self->registers.b = self->registers.b >> 1; 
+    self->registers.f = ZeroFlagValue(self->registers.b) | (lBit << 4);
+    PC_INC(self, 2); 
+    return 8; 
+}
 Byte ins_srl_c (GB_cpu *self) { Byte lBit = self->registers.c & 0x01; self->registers.c = self->registers.c >> 1; self->registers.f = ZeroFlagValue(self->registers.c) | (lBit << 4); PC_INC(self, 2); return 8; }
 Byte ins_srl_d (GB_cpu *self) { Byte lBit = self->registers.d & 0x01; self->registers.d = self->registers.d >> 1; self->registers.f = ZeroFlagValue(self->registers.d) | (lBit << 4); PC_INC(self, 2); return 8; }
 Byte ins_srl_e (GB_cpu *self) { Byte lBit = self->registers.e & 0x01; self->registers.e = self->registers.e >> 1; self->registers.f = ZeroFlagValue(self->registers.e) | (lBit << 4); PC_INC(self, 2); return 8; }
@@ -434,7 +463,7 @@ Byte ins_swap_h(GB_cpu *self) { self->registers.h = ((self->registers.h & 0xf0) 
 Byte ins_swap_l(GB_cpu *self) { self->registers.l = ((self->registers.l & 0xf0) >> 4) | ((self->registers.l & 0x0f)) << 4; self->registers.f = ZeroFlagValue(self->registers.l); PC_INC(self, 2); return 8; }
 Byte ins_swap_hl(GB_cpu *self) { Word hl = GB_register_get_HL(self); Byte value = GB_mmu_read_byte(&self->memory, hl); value = ((value & 0xf0) >> 4) | ((value & 0x0f)) << 4; self->registers.f = ZeroFlagValue(value); GB_mmu_write_byte(&self->memory,hl, value); PC_INC(self, 2); return 16; }
 
-Byte ins_daa (GB_cpu *self) { 
+Byte ins_daa2 (GB_cpu *self) { 
     Byte ajustment = 0;
     if (GB_cpu_get_half_carry_flag_bit(self) || (GB_cpu_get_subtraction_flag_bit(self) == 0 && ((self->registers.a & 0x0f) > 0x09))) {
         ajustment = 6;
@@ -449,6 +478,76 @@ Byte ins_daa (GB_cpu *self) {
     PC_INC(self, 1); 
     return 4;
 }
+
+Byte ins_daa3 (GB_cpu *self) { 
+    int result = self->registers.a;
+    unsigned short mask = 0xFF00;
+    GB_register_set_AF(self, ~(mask | FLAG_ZERO));
+    if(self->registers.f & FLAG_SUB) {
+        if (self->registers.f & FLAG_HALF) {
+            result = (result - 0x06);
+        }
+        if (self->registers.f & FLAG_CARRY) {
+            result -= 0x60;
+        }
+    } else {
+        if ((self->registers.f & FLAG_HALF) || (result & 0x0F) > 0x09) {
+            result += 0x06;
+        }
+        if ((self->registers.f & FLAG_CARRY) || result > 0x9F) {
+            result += 0x60;
+        }
+    }
+    if ((result & 0xFF) == 0) {
+        self->registers.f |= FLAG_ZERO;
+    }
+
+    if ((result & 0x100) == 0x100) {
+        self->registers.f |= FLAG_CARRY;
+    }
+
+    self->registers.a |= result;
+    self->registers.f &= ~FLAG_HALF;
+    PC_INC(self, 1);
+    return 4;
+}
+
+Byte ins_daa (GB_cpu *self) { 
+    int result = self->registers.a;
+    if(self->registers.f & FLAG_SUB) {
+        if (self->registers.f & FLAG_HALF) {
+            result -= 0x06;
+            if (! (self->registers.f & FLAG_CARRY)) {
+                result &= 0xff;
+            }
+        }
+        if (self->registers.f & FLAG_CARRY) {
+            result -= 0x60;
+        }
+    } else {
+        if ((self->registers.f & FLAG_HALF) || (result & 0x0F) > 0x09) {
+            result += 0x06;
+        }
+        if ((self->registers.f & FLAG_CARRY) || result > 0x9F) {
+            result += 0x60;
+        }
+    }
+
+    self->registers.f &= ~ (FLAG_HALF | FLAG_ZERO);
+
+    if (result & 0x100) {
+        self->registers.f |= FLAG_CARRY;
+    }
+    self->registers.a = result & 0xff;
+
+    if (! self->registers.a) {
+        self->registers.f |= FLAG_ZERO;
+    }
+
+    PC_INC(self, 1);
+    return 4;
+}
+
 Byte ins_cpl(GB_cpu *self) {
     self->registers.a = ~self->registers.a;
     self->registers.f = GB_cpu_zero_flag(self) | FLAG_SUB | FLAG_HALF | GB_cpu_get_carry_flag(self);
@@ -739,7 +838,13 @@ Byte ins_xor_a_e(GB_cpu *self) { self->registers.a = self->registers.a ^ self->r
 Byte ins_xor_a_h(GB_cpu *self) { self->registers.a = self->registers.a ^ self->registers.h; self->registers.f = ZeroFlagValue(self->registers.a); PC_INC(self, 1); return 4; }
 Byte ins_xor_a_l(GB_cpu *self) { self->registers.a = self->registers.a ^ self->registers.l; self->registers.f = ZeroFlagValue(self->registers.a); PC_INC(self, 1); return 4; }
 Byte ins_xor_a_x(GB_cpu *self) { self->registers.a = self->registers.a ^ GB_cpu_fetch_byte(self, 1); self->registers.f = ZeroFlagValue(self->registers.a); PC_INC(self, 2); return 8; }
-Byte ins_xor_a_hl(GB_cpu *self) { Byte hlv =  GB_mmu_read_byte(&self->memory, GB_register_get_HL(self)); self->registers.a = self->registers.a ^ hlv; self->registers.f = ZeroFlagValue(self->registers.a); PC_INC(self, 1); return 8; }
+Byte ins_xor_a_hl(GB_cpu *self) {
+    Byte hlv =  GB_mmu_read_byte(&self->memory, GB_register_get_HL(self)); 
+    self->registers.a = self->registers.a ^ hlv; 
+    self->registers.f = ZeroFlagValue(self->registers.a); 
+    PC_INC(self, 1); 
+    return 8;
+}
 
 Byte ins_cp_a_a(GB_cpu *self) { Byte value = self->registers.a - self->registers.a;  self->registers.f = ZeroFlagValue(value) | FLAG_SUB | HalfCarrySubFlagValue(self->registers.a, self->registers.a) | CarrySubFlagValueAdd(self->registers.a, self->registers.a); PC_INC(self, 1); return 4;  }
 Byte ins_cp_a_b(GB_cpu *self) { 
