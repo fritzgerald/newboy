@@ -1,11 +1,15 @@
-#include "PPU.h"
 #include "definitions.h"
+#include "PPU.h"
+#include "Device.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdbool.h>
 
-void GB_ppu_step(GB_ppu* ppu, Byte cycle) {
+void GB_deviceResetPPU(GB_device* ppu);
+
+void GB_devicePPUstep(GB_device* device, Byte cycle) {
+    GB_ppu *ppu = device->ppu;
     ppu->clock += cycle;
 
     switch (ppu->lineMode) {
@@ -53,11 +57,12 @@ void GB_ppu_step(GB_ppu* ppu, Byte cycle) {
     }
 }
 
-Byte GB_ppu_vRam_read(GB_ppu* ppu, Word addr) {
-    return ppu->vRam[addr & 0x1FFF]; // TODO: handle switch for CGB
+Byte GB_deviceVramRead(GB_device* device, Word addr) {
+    return device->ppu->vRam[addr & 0x1FFF]; // TODO: handle switch for CGB
 }
 
-void GB_ppu_vRam_write(GB_ppu* ppu, Word addr, Byte data) {
+void GB_deviceVramWrite(GB_device* device, Word addr, Byte data) {
+    GB_ppu *ppu = device->ppu;
     Word localAddr = addr & 0x1FFF;
     ppu->vRam[localAddr] = data;
 
@@ -114,7 +119,8 @@ Byte GB_ppu_status_value(GB_ppu* ppu) {
     return result;
 }
 
-void GB_ppu_IO_write(GB_ppu* ppu, Word addr, Byte data) {
+void GB_devicePPUIOWrite(GB_device* device, Word addr, Byte data) {
+    GB_ppu* ppu = device->ppu;
     Word localAddr = addr & 0x4F;
     switch (localAddr) {
         case 0x40:
@@ -165,7 +171,8 @@ void GB_ppu_IO_write(GB_ppu* ppu, Word addr, Byte data) {
     }
 }
 
-Byte GB_ppu_IO_read(GB_ppu* ppu, Word addr) {
+Byte GB_devicePPUIORead(GB_device* device, Word addr) {
+    GB_ppu* ppu = device->ppu;
     Word localAddr = addr & 0x4F;
     switch (localAddr) {
         case 0x40:
@@ -249,7 +256,8 @@ GBNonCBGColors GBNonCBGColors_value_from_int(int value) {
     }
 }
 
-void GB_ppu_reset(GB_ppu* ppu) {
+void GB_deviceResetPPU(GB_device* device) {
+    GB_ppu* ppu = device->ppu;
     memset(ppu->vRam, 0, 0x2000);
     memset(ppu->oam, 0, 0xA0);
     memset(ppu->tiles, 0, 384 * 8 * 8);

@@ -1,6 +1,8 @@
+#include "definitions.h"
+#include "Device.h"
+#include "PPU.h"
 #include "MMU.h"
 #include "Bios.h"
-#include "definitions.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +12,8 @@
 Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr);
 void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value);
 
-Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
+Byte GB_deviceReadByte(GB_device* device, Word addr) {
+    GB_mmu* mem = device->mmu;
     switch (addr & 0xF000) {
         // MARK: ROM bank or BIOS
         case 0x0000:
@@ -33,7 +36,7 @@ Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
 
         // MARK: VRAM
         case 0x8000: case 0x9000:
-            return GB_ppu_vRam_read(&mem->ppu, addr);
+            return GB_deviceVramRead(device, addr);
         // MARK: External RAM
         case 0xA000: case 0xB000:
             return mem->eRam[addr & 0x1FFF]; // TODO: handle Switch
@@ -53,7 +56,7 @@ Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
                 case 0xE00:
                     // OAM is 0xA0 bytes, remaining bytes read as 0
                     if(addr < 0xFEA0) {
-                        return mem->ppu.oam[addr & 0xFF];
+                        return device->ppu->oam[addr & 0xFF];
                     }
                     return 0;
                 		    // Zero-page
@@ -73,7 +76,7 @@ Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
                             case 0x10: case 0x20: case 0x30:
                                 break;
                             case 0x40:
-                                return GB_ppu_IO_read(&mem->ppu, addr);
+                                return GB_devicePPUIORead(device, addr);
                             
                         }
 			            return 0;
@@ -83,27 +86,28 @@ Byte GB_mmu_read_byte(GB_mmu* mem, Word addr) {
     return 0;
 }
 
-Word GB_mmu_read_word(GB_mmu* mem, Word addr) {
-    Word strongByte = GB_mmu_read_byte(mem, addr+1);
-    return  (strongByte << 8) + GB_mmu_read_byte(mem, addr);
+Word GB_deviceReadWord(GB_device* device, Word addr) {
+    Word strongByte = GB_deviceReadByte(device, addr+1);
+    return  (strongByte << 8) + GB_deviceReadByte(device, addr);
 }
 
-void GB_mmu_OAM_DMA(GB_mmu* mem, Byte data) {
-    mem->ppu.dmaValue = data;
+void GB_device_OAM_DMA(GB_device* device, Byte data) {
+    device->ppu->dmaValue = data;
     Word addr = ((Word)data) * 0x100;
     for (int delta = 0; delta < 0xA0; delta++) {
         Word copyAddr = addr + delta;
-        mem->ppu.oam[delta] = GB_mmu_read_byte(mem, copyAddr);
+        device->ppu->oam[delta] = GB_deviceReadByte(device, copyAddr);
     }
 }
 
-void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
+void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
+    GB_mmu* mem = device->mmu;
     switch (addr & 0xF000) {
         case 0x0000: case 0x1000: case 0x2000: case 0x3000: case 0x4000:
         case 0x5000: case 0x6000: case 0x7000:
             break; // TODO: Handle MBCs to define behavior
         case 0x8000: case 0x9000:
-            GB_ppu_vRam_write(&mem->ppu, addr, value);
+            GB_deviceVramWrite(device, addr, value);
             break;
         case 0xA000: case 0xB000:
             mem->eRam[addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
@@ -126,7 +130,7 @@ void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
                 case 0xE00:
                     // OAM is 0xA0 bytes, remaining bytes read as 0
                     if(addr < 0xFEA0) {
-                        mem->ppu.oam[addr & 0xFF] = value;
+                        device->ppu->oam[addr & 0xFF] = value;
                     }
                     break;
                 // Zero-page
@@ -136,7 +140,7 @@ void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
                     } else if (addr > 0xFF7F) {
                         mem->zRam[addr & 0x7F] = value;
                     } else if (addr == 0xFF46) {
-                        GB_mmu_OAM_DMA(mem, value);
+                        GB_device_OAM_DMA(device, value);
                     } else if (addr == 0xFF50) {
                         mem->in_bios = (value > 0) ? true : false;
                     } else if (addr == 0xFF4D) {
@@ -150,7 +154,7 @@ void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
                             case 0x10: case 0x20: case 0x30:
                                 break;
                             case 0x40:
-                                GB_ppu_IO_write(&mem->ppu, addr, value);
+                                GB_devicePPUIOWrite(device, addr, value);
                         }
                     }
                     break;
@@ -158,9 +162,9 @@ void GB_mmu_write_byte(GB_mmu* mem, Word addr, Byte value) {
     }
 }
 
-void GB_mmu_write_word(GB_mmu* mem, Word addr, Word value) {
-    GB_mmu_write_byte(mem, addr, value & 0xff);
-    GB_mmu_write_byte(mem, addr + 1, value >> 8);
+void GB_deviceWriteWord(GB_device* device, Word addr, Word value) {
+    GB_deviceWriteByte(device, addr, value & 0xff);
+    GB_deviceWriteByte(device, addr + 1, value >> 8);
 }
 
 u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize) {
@@ -205,7 +209,7 @@ u_int32_t GB_cartridgeRamSize(u_int8_t rawRamSize) {
     };
 }
 
-int GB_mmu_load(GB_mmu* mem, const char* filePath) {
+int GB_deviceloadRom(GB_device* device, const char* filePath) {
     FILE *cartridgeFile = fopen(filePath, "rb");
     if(cartridgeFile == NULL) {
         fclose(cartridgeFile);
@@ -240,10 +244,10 @@ int GB_mmu_load(GB_mmu* mem, const char* filePath) {
     fread(&rawRamSize, 1, 1, cartridgeFile);
     u_int32_t ramSize = GB_cartridgeRamSize(rawRamSize);
 
-    mem->rom = (u_int8_t *) malloc(romSize);
+    device->mmu->rom = (u_int8_t *) malloc(romSize);
 
     fseek(cartridgeFile, 0, SEEK_SET);
-    fread(mem->rom, romSize, 1, cartridgeFile);
+    fread(device->mmu->rom, romSize, 1, cartridgeFile);
 
     // Handle eRam sizes
 
@@ -309,7 +313,8 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
     }
 }
 
-void GB_mmu_reset(GB_mmu* mem) {
+void GB_deviceResetMMU(GB_device* device) {
+    GB_mmu* mem = device->mmu;
     mem->in_bios = true;
     memcpy(mem->bios, GBDMGBios, GBDMGBiosLength);
     if(mem->rom != NULL) {
@@ -330,5 +335,4 @@ void GB_mmu_reset(GB_mmu* mem) {
     mem->tac = 0;
     mem->interruptRequest = 0;
     mem->KEY1 = 0;
-    GB_ppu_reset(&mem->ppu);
 }

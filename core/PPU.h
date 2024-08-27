@@ -35,7 +35,7 @@ typedef enum {
 
 GBNonCBGColors GBNonCBGColors_value_from_int(int);
 
-typedef struct {
+struct GB_ppu_s {
     Byte vRam[0x2000];
     Byte oam[0xA0];
     GB_tile_pixel_value tiles[384][8][8];
@@ -76,12 +76,14 @@ typedef struct {
     GB_tile_bit_value isBGWinEnabled;
     Byte controlBit; // storage value to ease reads
     Byte dmaValue;
-} GB_ppu;
+};
 
-void GB_ppu_reset(GB_ppu* ppu);
-void GB_ppu_step(GB_ppu* ppu, Byte cycle);
-Byte GB_ppu_vRam_read(GB_ppu*, Word addr);
-void GB_ppu_vRam_write(GB_ppu*, Word addr, Byte data);
-void GB_ppu_IO_write(GB_ppu* ppu, Word addr, Byte data);
-Byte GB_ppu_IO_read(GB_ppu* ppu, Word addr);
+void GB_deviceResetPPU(GB_device* device);
+void GB_devicePPUstep(GB_device* device, Byte cycle);
+Byte GB_deviceVramRead(GB_device* device, Word addr);
+void GB_deviceVramWrite(GB_device* device, Word addr, Byte data);
+void GB_devicePPUIOWrite(GB_device* device, Word addr, Byte data);
+Byte GB_devicePPUIORead(GB_device* device, Word addr);
+
+// TODO: just for tests. remove later
 void GB_ppu_gen_tile_bitmap(GB_ppu* ppu, int tileIndex);

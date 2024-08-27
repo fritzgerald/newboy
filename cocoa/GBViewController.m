@@ -1,4 +1,5 @@
 #import "GBViewController.h"
+#include "core/definitions.h"
 #include <Foundation/Foundation.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -7,9 +8,11 @@
 #include <objc/objc.h>
 #include "core/CPU.h"
 #include "core/MMU.h"
+#include "core/Device.h"
+#include "core/PPU.h"
 
 @implementation GBViewController {
-    GB_cpu cpu;
+    GB_device *device;
 }
 
 -(id)initWithRomFilePath:(NSString *)romFilePath {
@@ -22,8 +25,10 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    GB_cpu_reset(&cpu);
-    int result = GB_mmu_load(&cpu.memory, _romFilePath.cString);
+    device = GB_newDevice();
+    GB_reset(device);
+
+    int result = GB_deviceloadRom(device, _romFilePath.cString);
     if(result == GB_CARTRIDGE_SUCCESS) {
         NSLog(@"loading file %@ succeed", self.romFilePath);
     } else {
@@ -32,18 +37,23 @@
     }
     
     int strIdx = 0;
-    char console[10000];
-    while (strIdx < 10000) {
-        unsigned char cycles = GB_cpu_step(&cpu);
-        GB_ppu_step(&cpu.memory.ppu, cycles);
+    char console[100];
+    while (true) {
+        unsigned char cycles = GB_deviceCpuStep(device);
+        GB_devicePPUstep(device, cycles);
         
-        if(GB_mmu_read_byte(&cpu.memory, 0xFF02) == 0x81) {
-            unsigned char sb = GB_mmu_read_byte(&cpu.memory, 0xFF01);
-            GB_mmu_write_byte(&cpu.memory, 0xFF02, 0x01);
+        if(GB_deviceReadByte(device, 0xFF02) == 0x81) {
+            unsigned char sb = GB_deviceReadByte(device, 0xFF01);
+            GB_deviceWriteByte(device, 0xFF02, 0x01);
             console[strIdx] = sb;
-            //NSLog(@"%@", [NSString stringWithCString:&sb length:1]);
-            printf("%c", sb);
             strIdx++;
+            if(sb == '\n' || strIdx == 99) {
+                NSLog(@"%@", [NSString stringWithCString:console length:strIdx]);
+                strIdx = 0;
+            }
+            //NSLog(@"%@", [NSString stringWithCString:&sb length:1]);
+            //printf("%c", sb);
+            
         }
     }
     NSLog(@"pause");

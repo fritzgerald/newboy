@@ -2,7 +2,6 @@
 
 #include "definitions.h"
 #include <stdbool.h>
-#include "PPU.h"
 
 #define GB_CARTRIDGE_SUCCESS    0
 #define GB_CARTRIDGE_FILE_ERROR -1
@@ -24,12 +23,11 @@ typedef enum {
     GBCPUSpeedDouble
 } GBCPUSpeed;
 
-typedef struct {
+struct GB_mmu_s {
     bool in_bios;
 
     Byte bios[0x100];
     Byte* rom; // TODO: handle multiple rom sizes
-    GB_ppu ppu;
     Byte eRam[0x2000];
     Byte wRam[0x2000];
     Byte zRam[0x80];
@@ -44,11 +42,11 @@ typedef struct {
     Byte tac;
     Byte interruptRequest;
     Byte KEY1;
-} GB_mmu;
+};
 
-Byte GB_mmu_read_byte(GB_mmu*, Word);
-Word GB_mmu_read_word(GB_mmu*, Word);
-void GB_mmu_write_byte(GB_mmu*, Word, Byte);
-void GB_mmu_write_word(GB_mmu*, Word, Word);
-int GB_mmu_load(GB_mmu* mem, const char* filePath);
-void GB_mmu_reset(GB_mmu* mem);
+Byte GB_deviceReadByte(GB_device*, Word);
+Word GB_deviceReadWord(GB_device*, Word);
+void GB_deviceWriteByte(GB_device*, Word, Byte);
+void GB_deviceWriteWord(GB_device*, Word, Word);
+int  GB_deviceloadRom(GB_device* device, const char* filePath);
+void GB_deviceResetMMU(GB_device* device);
