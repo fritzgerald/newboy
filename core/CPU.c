@@ -1259,6 +1259,11 @@ Byte GB_deviceCpuStep(GB_device* device) {
 
     Byte cycles = (*insToExec)(device);
 
+    if(cpu->registers.pc == GB_PC_START) {
+        // trying to execute rom code so leave bios mode.
+        mmu->in_bios = false;
+    }
+
     // update DIV register
     cpu->divCounter += cycles;
     if(cpu->divCounter >= DIV_CLOCK_INC) { // TODO: Handle double speed

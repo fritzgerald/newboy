@@ -19,9 +19,6 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
         case 0x0000:
             if(mem->in_bios) {
                 if(addr >= 0x100) {
-                    // trying to access cartridge header
-                    // we should leave the BIOS now
-                    //mem->in_bios = false;
                     unsigned char txt = mem->rom[addr];
                     return txt;
                 }
@@ -61,7 +58,9 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
                     return 0;
                 		    // Zero-page
                 case 0xF00:
-                    if(addr >= 0xFF80) {
+                    if(addr == 0xFFFF) {
+                        return mem->interruptEnable;
+                    } else if(addr >= 0xFF80) {
 			            return mem->zRam[addr & 0x7F];
 			        } else if(addr == 0xFF50) {
                         return mem->in_bios;
@@ -136,7 +135,7 @@ void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
                 // Zero-page
                 case 0xF00:
                     if(addr == 0xFFFF) { 
-                        // TODO: Handle interrups
+                        mem->interruptEnable = value & 0x1F;
                     } else if (addr > 0xFF7F) {
                         mem->zRam[addr & 0x7F] = value;
                     } else if (addr == 0xFF46) {
@@ -317,10 +316,6 @@ void GB_deviceResetMMU(GB_device* device) {
     GB_mmu* mem = device->mmu;
     mem->in_bios = true;
     memcpy(mem->bios, GBDMGBios, GBDMGBiosLength);
-    if(mem->rom != NULL) {
-        free(mem->rom);
-        mem->rom = NULL;
-    }
     memset(mem->eRam, 0, 0x2000);
     memset(mem->wRam, 0, 0x2000);
     memset(mem->zRam, 0, 0x80);

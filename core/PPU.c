@@ -1,6 +1,9 @@
 #include "definitions.h"
 #include "PPU.h"
+#include "MMU.h"
 #include "Device.h"
+#include <Security/cssmconfig.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -21,7 +24,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                 if(ppu->line == 144) {
                     // Enter vBlank
                     ppu->lineMode = GB_PPU_MODE_VBLANK;
-                    // here Frame is finished to something to allow rendering
+                    device->mmu->interruptRequest |= GB_INTERRUPT_FLAG_VBLANK;
                 } else {
                     ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
                 }
@@ -98,7 +101,7 @@ void GB_ppu_update_control_flags(GB_ppu* ppu) {
     ppu->bgWinTileArea = GB_tile_bit_value_from_int( ppu->controlBit & (1 << 4));
     ppu->isWindowEnabled = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 5));
     ppu->windowTileMap = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 6));
-    ppu->isBGWinEnabled = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 7));
+    ppu->LcdPpuEnable = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 7));
 }
 
 void GB_ppu_update_status_bits(GB_ppu* ppu, Byte data) {
@@ -330,8 +333,60 @@ unsigned char* GB_ppu_gen_tile_bitmap_data(GB_ppu* ppu, int tileIndex) {
     return pixels;
 }
 
-void GB_ppu_gen_background_bitmap(GB_ppu* ppu, int tileIndex) {
+void setInt(char* tab, int startIdx, int value) {
+    tab[startIdx] = value;
+    tab[startIdx + 1] = (char) value >> 8;
+    tab[startIdx + 2] = (char) (value >> 0x10);
+    tab[startIdx + 3] = (char) (value >> 0x18);
+}
 
+void setShort(char* tab, int startIdx, short value) {
+    tab[startIdx] = value;
+    tab[startIdx + 1] = (char)value >> 8;
+}
+
+uint8_t* GB_ppu_gen_background_bitmap(GB_device* device) {
+    int width = 256; // 32 * 8. 32 tiles of 8 pixels
+    int height = 256;
+    uint32_t size = width * height * 4; //for 32-bit bitmap only
+
+    uint8_t *pixels = malloc(size);
+
+    // here we ignore ppu->isBGWinEnabled
+    uint16_t tileIndexStart = (device->ppu->bgWinTileArea == GB_tile_bit_value_0) ? 256 : 0;
+    Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
+    Word bgAddrLen = 0x400;
+    for (uint16_t i = 0; i < bgAddrLen; i++) {
+        int16_t tileIndex = 0;
+        if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
+            int8_t tileIdxData = GB_deviceReadByte(device, startAddr + i);
+            tileIndex = 256 + tileIdxData;
+        } else {
+            tileIndex = GB_deviceReadByte(device, startAddr + i);
+        }
+
+        int tileWidth = 8;
+        int tileHeight = 8;
+        uint32_t startBGx = (i % 32) * 8 * 4;
+        uint32_t startBGy = (i / 32) * 256 * 8 * 4;
+        int bgWidth = 256 * 4;
+
+        for(int row = 0; row < tileHeight; row++) {
+            for(int column = 0; column < tileWidth; column++) {            
+                GB_tile_pixel_value value = device->ppu->tiles[tileIndex][row][column];
+                unsigned int color = GB_ppu_getBackgroundPaletteColor(device->ppu, value);
+                //color = 0x000000FF;
+
+                int p = startBGx + (column * 4) + (row * bgWidth) + startBGy;
+                // convert RGB to BGR
+                pixels[p + 0] = (color >> 8) & 0xFF; //blue
+                pixels[p + 1] = (color >> 16) & 0xFF; //green
+                pixels[p + 2] = (color >> 24) & 0xFF; //red
+                pixels[p + 3] = color & 0xFF; //Alpha
+            }
+        }
+    }
+    return pixels;
 }
 
 void GB_ppu_gen_tile_bitmap(GB_ppu* ppu, int tileIndex) {

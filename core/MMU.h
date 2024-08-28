@@ -40,6 +40,7 @@ struct GB_mmu_s {
     Byte tima;
     Byte tma;
     Byte tac;
+    Byte interruptEnable;
     Byte interruptRequest;
     Byte KEY1;
 };

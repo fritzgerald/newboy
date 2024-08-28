@@ -1,4 +1,5 @@
 
+#include "core/Device.h"
 #import "core/CPU.h"
 #include "core/PPU.h"
 #include "core/MMU.h"

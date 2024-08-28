@@ -1,5 +1,6 @@
 #include "definitions.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #pragma once
 
@@ -74,6 +75,7 @@ struct GB_ppu_s {
     GB_tile_bit_value objSize;
     GB_tile_bit_value objEnable;
     GB_tile_bit_value isBGWinEnabled;
+    GB_tile_bit_value LcdPpuEnable;
     Byte controlBit; // storage value to ease reads
     Byte dmaValue;
 };
@@ -87,3 +89,4 @@ Byte GB_devicePPUIORead(GB_device* device, Word addr);
 
 // TODO: just for tests. remove later
 void GB_ppu_gen_tile_bitmap(GB_ppu* ppu, int tileIndex);
+uint8_t* GB_ppu_gen_background_bitmap(GB_device* device);
