@@ -5,6 +5,7 @@
 #include <Foundation/Foundation.h>
 #include "GBView.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import "GameViewController.h"
 
 @implementation AppDelegate
 
@@ -70,9 +71,20 @@
     [mainWindow makeKeyAndOrderFront:nil];
 }
 
+-(void) presentGameViewController {
+    NSRect frame = NSMakeRect(0, 0, 800, 600);
+    GameViewController* vc = [[GameViewController alloc] init];
+    NSWindow* window = [NSWindow windowWithContentViewController: vc];
+    window.title = @"NewBoy";
+
+    [window setContentSize:NSMakeSize(800, 600)];
+    [window makeKeyAndOrderFront:nil];
+}
+
 - (void) applicationDidFinishLaunching:(NSNotification *)notification {
     [NSApp activate];
     [self setupMainMenu];
+    [self presentGameViewController];
 }
 
 @end

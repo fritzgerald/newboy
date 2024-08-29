@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <Foundation/NSObjCRuntime.h>
-#include "core/MMU.h"
 #include <objc/objc.h>
 #include "core/CPU.h"
 #include "core/MMU.h"

@@ -29,6 +29,8 @@ CORE_OBJECTS := $(patsubst %,$(OBJ)/%.o,$(CORE_SOURCES))
 
 COCOA_SOURCES := $(shell ls cocoa/*.m)
 COCOA_OBJECTS := $(patsubst %,$(OBJ)/%.o,$(COCOA_SOURCES))
+COCOA_SHADER_SOURCES := $(shell ls cocoa/*.metal)
+COCOA_SHADER_OBJECTS := $(patsubst %,$(OBJ)/%.ir,$(COCOA_SHADER_SOURCES))
 
 TESTS_SOURCES := $(shell ls tests/*.c)
 TESTS_OBJECTS := $(patsubst %,$(OBJ)/%.o,$(TESTS_SOURCES))
@@ -39,11 +41,12 @@ CODESIGN := codesign -fs -
 CFLAGS += -g
 CFLAGS += -F/Library/Frameworks -mmacosx-version-min=14.0 -isysroot $(SYSROOT) -IAppleCommon -fobjc-arc -I./
 
-LDFLAGS += -Wl -framework AppKit -framework QuartzCore -framework Metal -framework UniformTypeIdentifiers -mmacosx-version-min=14.0 -isysroot $(SYSROOT)
+LDFLAGS += -Wl -framework AppKit -framework QuartzCore -framework Metal -framework UniformTypeIdentifiers -framework MetalKit -mmacosx-version-min=14.0 -isysroot $(SYSROOT)
 
 cocoaApp: $(ODIR)/NewBoy.app
 $(ODIR)/NewBoy.app: $(ODIR)/NewBoy.app/Contents/MacOS/NewBoy \
-					 cocoa/Info.plist
+					 cocoa/Info.plist \
+					 $(ODIR)/NewBoy.app/Contents/Resources/default.metallib
 	cp cocoa/Info.plist $(ODIR)/NewBoy.app/Contents/Info.plist
 	$(CODESIGN) $@
 
@@ -51,6 +54,14 @@ $(ODIR)/NewBoy.app: $(ODIR)/NewBoy.app/Contents/MacOS/NewBoy \
 $(ODIR)/NewBoy.app/Contents/MacOS/NewBoy: $(CORE_OBJECTS) $(COCOA_OBJECTS)
 	mkdir -p $(dir $@)
 	$(CC) $^ -o $@ $(LDFLAGS)
+
+$(ODIR)/NewBoy.app/Contents/Resources/default.metallib: $(COCOA_SHADER_OBJECTS)
+	mkdir -p $(dir $@)
+	xcrun -sdk macosx metallib -o $@ $^
+
+$(OBJ)/%.metal.ir: %.metal
+	mkdir -p $(@D)
+	xcrun -sdk macosx metal -c $< -o $@
 
 tests: $(CORE_OBJECTS) $(TESTS_OBJECTS)
 	mkdir -p $(ODIR)

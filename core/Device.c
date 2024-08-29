@@ -33,6 +33,8 @@ GB_device* GB_newDevice() {
     device->mmu = mmu;
     device->ppu = ppu;
 
+    GB_reset(device);
+
     return device;
 }
 

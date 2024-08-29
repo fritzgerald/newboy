@@ -1,4 +1,5 @@
 #import "MetalView.h"
+#include <Foundation/Foundation.h>
 #include <QuartzCore/QuartzCore.h>
 
 @implementation MetalView {
@@ -167,6 +168,8 @@
     [self resizeDrawable:self.window.screen.backingScaleFactor];
 }
 
+static CFTimeInterval lastUpdate;
+
 // This is the renderer output callback function
 static CVReturn DispatchRenderLoop(CVDisplayLinkRef displayLink,
                                    const CVTimeStamp* now,
@@ -175,10 +178,14 @@ static CVReturn DispatchRenderLoop(CVDisplayLinkRef displayLink,
                                    CVOptionFlags* flagsOut,
                                    void* displayLinkContext)
 {
-    // 'DispatchRenderLoop' is always called on a secondary thread.  Merge the dispatch source
-    // setup for the main queue so that rendering occurs on the main thread
-    __weak dispatch_source_t source = (__bridge dispatch_source_t)displayLinkContext;
-    dispatch_source_merge_data(source, 1);
+    CFTimeInterval elapsedTime = CACurrentMediaTime() - lastUpdate;
+    if(elapsedTime > (1.0/60)) { // FPS lock to 60 HZ
+        // 'DispatchRenderLoop' is always called on a secondary thread.  Merge the dispatch source
+        // setup for the main queue so that rendering occurs on the main thread
+        __weak dispatch_source_t source = (__bridge dispatch_source_t)displayLinkContext;
+        dispatch_source_merge_data(source, 1);
+        lastUpdate = CACurrentMediaTime();
+    }
 
     return kCVReturnSuccess;
 }
