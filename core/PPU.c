@@ -8,56 +8,66 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <stdbool.h>
+#include <sys/_types/_u_int32_t.h>
 
 void GB_deviceResetPPU(GB_device* ppu);
+uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset);
+void GB_RenderProcessFrame(GB_device* device, Byte cycles);
+void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan);
 
 void GB_devicePPUstep(GB_device* device, Byte cycle) {
     GB_ppu *ppu = device->ppu;
-    ppu->clock += cycle;
+    Byte tick = cycle / 4;
 
-    switch (ppu->lineMode) {
-        case GB_PPU_MODE_HBLANK:
-            if(ppu->clock >= 456) {
-                // exit from HBlank
-                ppu->clock = 0;
-                ppu->line++;
-                if(ppu->line == 144) {
-                    // Enter vBlank
-                    ppu->lineMode = GB_PPU_MODE_VBLANK;
-                    device->mmu->interruptRequest |= GB_INTERRUPT_FLAG_VBLANK;
+    for (int update = 0; update < tick; update++) {
+        switch (ppu->lineMode & 0x3) {
+            case GB_PPU_MODE_HBLANK:
+                if(ppu->clock >= 204) {
+                    // exit from HBlank
+                    ppu->clock = 0;
+                    ppu->line++;
+                    if(ppu->line == 144) {
+                        // Enter vBlank             
+                        ppu->lineMode = GB_PPU_MODE_VBLANK;
+                        device->mmu->interruptRequest |= GB_INTERRUPT_FLAG_VBLANK;
+                    } else {
+                        ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
+                    }
                 } else {
-                    ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
+                    u_int32_t newClock = ppu->clock + 1;
+                    ppu->clock = newClock;
                 }
-            }
-            break;
-        case GB_PPU_MODE_VBLANK:
-            if(ppu->clock >= 456) {
-                // exit from HBlank
-                ppu->clock = 0;
-                ppu->line++;
-                if(ppu->line == 154) {
-                    // End of vBlank goto OAM scan
-                    ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
-                    ppu->line = 0;
+                break;
+            case GB_PPU_MODE_VBLANK:
+                if(ppu->clock >= 456) {
+                    // exit from HBlank
+                    ppu->clock = 0;
+                    ppu->line++;
+                    if(ppu->line == 154) {
+                        // End of vBlank goto OAM scan
+                        ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
+                        ppu->line = 0;
+                    }
+                } else {
+                    u_int32_t newClock = ppu->clock + tick;
+                    ppu->clock = newClock;
                 }
-            }
-            break;
-        case GB_PPU_MODE_OAM_SCAN:
-            if(ppu->clock >= 80) {
-                ppu->clock = 0;
-                ppu->lineMode = GB_PPU_MODE_DRAW;
-            }
-            break;
-        case GB_PPU_MODE_DRAW:
-            // Between 172 and 289 dots
-            // TODO: Handle draw penalities
-            if(ppu->clock >= 172) {
-                ppu->clock = 0;
-                ppu->lineMode = GB_PPU_MODE_HBLANK;
-                // TODO: Line can be rendered here.
-            }
-            break;
+                break;
+            case GB_PPU_MODE_OAM_SCAN:
+                if(ppu->clock >= 80) {
+                    ppu->clock = 0;
+                    ppu->lineMode = GB_PPU_MODE_DRAW;
+                }  else {
+                    u_int32_t newClock = ppu->clock + 1;
+                    ppu->clock = newClock;
+                }
+                break;
+            case GB_PPU_MODE_DRAW:
+                GB_RenderProcessFrame(device, 1);
+                break;
+        }
     }
+
 }
 
 Byte GB_deviceVramRead(GB_device* device, Word addr) {
@@ -345,6 +355,80 @@ void setShort(char* tab, int startIdx, short value) {
     tab[startIdx + 1] = (char)value >> 8;
 }
 
+void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
+    Word scx = device->ppu->scrollX;
+    Word scy = device->ppu->scrollY;
+    u_int32_t pixelX = (xScan + scx) % 256;
+    u_int32_t pixelY = (line + scy) % 256;
+    Byte tilex = pixelX / 8;
+    Byte tiley = pixelY / 8;
+    uint32 bgPixelOffset = (tiley * 32) + tilex;
+    //uint32 bgTileOffset = bgPixelOffset / 8;
+
+    uint16_t tileIndex = _GB_tileindexWithOffset(device, bgPixelOffset);
+    uint32_t column = pixelX % 8;
+    uint32_t row  = pixelY % 8;
+    GB_tile_pixel_value value = device->ppu->tiles[tileIndex][row][column];
+    uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
+    //printf("updating pixel t:%d, r:%d, c%d, f:%d\n", tileIndex, row, column, frameIndex);
+    device->ppu->frameBuffer[GBBackgroundFrameBuffer][frameIndex] = value;
+}
+
+void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
+    // Between 172 and 289 dots
+    // TODO: Handle draw penalities
+    GB_ppu* ppu = device->ppu;
+    if(ppu->clock >= 172) {
+        ppu->clock = 0;
+        ppu->lineMode = GB_PPU_MODE_HBLANK;
+        // printf("finished rendering line %d\n", ppu->line);
+        // TODO: Line can be rendered here.
+        return;
+    }
+    if(ppu->clock < 160) {
+        int fetchToPerform = cycles;
+        for (int i = 0; i < fetchToPerform; i++) {
+            int scanX = ppu->clock + i;
+            GB_updateBackgroundPixel(device, ppu->line, scanX);
+            //printf("finished rendering scanX %d\n", scanX);
+        }
+    }
+
+    u_int32_t newClock = ppu->clock + cycles;
+    ppu->clock = newClock;
+}
+
+uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset) {
+    Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
+
+    if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
+        int8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
+        return 256 + tileIdxData;
+    }
+    return GB_deviceReadByte(device, startAddr + offset);
+}
+
+uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
+    GB_ppu* ppu = device->ppu;
+    int width = 160; // 32 * 8. 32 tiles of 8 pixels
+    int height = 144;
+    uint32_t size = width * height * 4; //for 32-bit bitmap only
+
+    uint8_t *pixels = malloc(size);
+
+    for (uint16_t i = 0; i < width * height; i++) {
+        GB_tile_pixel_value bgTileIndex = ppu->frameBuffer[GBBackgroundFrameBuffer][i];
+        uint32_t color = GB_ppu_getBackgroundPaletteColor(device->ppu, bgTileIndex);
+        int p = i * 4;
+        pixels[p + 0] = (color >> 8) & 0xFF; //blue
+        pixels[p + 1] = (color >> 16) & 0xFF; //green
+        pixels[p + 2] = (color >> 24) & 0xFF; //red
+        pixels[p + 3] = color & 0xFF; //Alpha
+    }
+    return pixels;
+}
+
+
 uint8_t* GB_ppu_gen_background_bitmap(GB_device* device) {
     int width = 256; // 32 * 8. 32 tiles of 8 pixels
     int height = 256;
@@ -353,17 +437,9 @@ uint8_t* GB_ppu_gen_background_bitmap(GB_device* device) {
     uint8_t *pixels = malloc(size);
 
     // here we ignore ppu->isBGWinEnabled
-    uint16_t tileIndexStart = (device->ppu->bgWinTileArea == GB_tile_bit_value_0) ? 256 : 0;
-    Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
     Word bgAddrLen = 0x400;
     for (uint16_t i = 0; i < bgAddrLen; i++) {
-        int16_t tileIndex = 0;
-        if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
-            int8_t tileIdxData = GB_deviceReadByte(device, startAddr + i);
-            tileIndex = 256 + tileIdxData;
-        } else {
-            tileIndex = GB_deviceReadByte(device, startAddr + i);
-        }
+        int16_t tileIndex = _GB_tileindexWithOffset(device, i);
 
         int tileWidth = 8;
         int tileHeight = 8;

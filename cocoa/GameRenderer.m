@@ -39,7 +39,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "tetris.gb");
+    GB_deviceloadRom(_gameboydevice, "cpu_instrs.gb");
 
     _frameNum = 0;
 
@@ -52,19 +52,9 @@
     _drawableRenderDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
     _drawableRenderDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 1, 1, 1);
 
-    NSImage* img = [NSImage imageNamed:@"tetris"];
-    CGRect rect = CGRectMake(0, 0, img.size.width, img.size.height);
-    CGImageRef imgRef = [img CGImageForProposedRect: &rect context:Nil hints:nil];
     _textureLoader = [[MTKTextureLoader alloc] initWithDevice:device];
 
     __weak GameRenderer* weakSelf = self;
-    // [_textureLoader newTextureWithCGImage:imgRef options:@{} completionHandler:^(id<MTLTexture>  texture, NSError * error) {
-    //     if (weakSelf == nil) {
-    //         return;
-    //     }
-    //     GameRenderer *strongSelf = weakSelf;
-    //     strongSelf->_texture = texture;
-    // }];
 
     [self createRenderPipeline:drawabklePixelFormat];
 
@@ -92,20 +82,20 @@
     // TODO: Render Frame
     // Frame done
     _gameboydevice->mmu->interruptRequest &= ~(GB_INTERRUPT_FLAG_VBLANK);
-    uint8_t* data =  GB_ppu_gen_background_bitmap(_gameboydevice);
+    uint8_t* data =  GB_ppu_gen_frame_bitmap(_gameboydevice);
     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
         initWithBitmapDataPlanes: &data 
-        pixelsWide:256 
-        pixelsHigh:256 
+        pixelsWide:160 
+        pixelsHigh:144 
         bitsPerSample:8 
         samplesPerPixel: 4 
         hasAlpha:YES isPlanar:NO
         colorSpaceName:NSDeviceRGBColorSpace 
         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
-        bytesPerRow:256 * 4
+        bytesPerRow:160 * 4
         bitsPerPixel:32];
     
-    free(data);
+    //free(data);
     return [img CGImage];
 }
 
@@ -164,6 +154,7 @@
 }
 
 - (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
+    CGImageRef frame = [self renderBackgroundFrame];
     // Create a new command buffer for each render pass to the current drawable.
     id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -187,7 +178,7 @@
     uniforms.scale = 1.0;
     uniforms.viewportSize = _viewportSize;
 
-    id<MTLTexture> texture = [_textureLoader newTextureWithCGImage:[self renderBackgroundFrame] options:nil error:nil];
+    id<MTLTexture> texture = [_textureLoader newTextureWithCGImage:frame options:nil error:nil];
 
     [renderEncoder setVertexBytes:&uniforms
                            length:sizeof(uniforms)

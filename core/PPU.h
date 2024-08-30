@@ -1,6 +1,7 @@
 #include "definitions.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/_types/_u_int32_t.h>
 
 #pragma once
 
@@ -34,13 +35,15 @@ typedef enum {
     GBNonCBGColorBlack
 } GBNonCBGColors;
 
+typedef enum {
+    GBBackgroundFrameBuffer,
+    GBObjectFrameBuffer
+} GBFrameBufferIndex;
+
 GBNonCBGColors GBNonCBGColors_value_from_int(int);
 
 struct GB_ppu_s {
-    Byte vRam[0x2000];
-    Byte oam[0xA0];
-    GB_tile_pixel_value tiles[384][8][8];
-    unsigned short clock;
+    u_int32_t clock;
     GB_ppu_mode lineMode;
     // LY: current line being handled
     Byte line;
@@ -54,10 +57,6 @@ struct GB_ppu_s {
     Byte windowY;
     // SCX: Window x position
     Byte windowX;
-
-    GBNonCBGColors bgpIdColors[4];
-    GBNonCBGColors objp0IdColor[4];
-    GBNonCBGColors objp1IdColor[4];
 
     Byte vramBankIndex;
 
@@ -78,6 +77,15 @@ struct GB_ppu_s {
     GB_tile_bit_value LcdPpuEnable;
     Byte controlBit; // storage value to ease reads
     Byte dmaValue;
+
+    GBNonCBGColors bgpIdColors[4];
+    GBNonCBGColors objp0IdColor[4];
+    GBNonCBGColors objp1IdColor[4];
+
+    Byte vRam[0x2000];
+    Byte oam[0xA0];
+    GB_tile_pixel_value tiles[384][8][8];
+    GB_tile_pixel_value frameBuffer[2][160 * 144];
 };
 
 void GB_deviceResetPPU(GB_device* device);
@@ -90,3 +98,4 @@ Byte GB_devicePPUIORead(GB_device* device, Word addr);
 // TODO: just for tests. remove later
 void GB_ppu_gen_tile_bitmap(GB_ppu* ppu, int tileIndex);
 uint8_t* GB_ppu_gen_background_bitmap(GB_device* device);
+uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device);
