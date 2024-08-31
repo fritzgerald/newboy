@@ -51,3 +51,4 @@ void GB_deviceWriteByte(GB_device*, Word, Byte);
 void GB_deviceWriteWord(GB_device*, Word, Word);
 int  GB_deviceloadRom(GB_device* device, const char* filePath);
 void GB_deviceResetMMU(GB_device* device);
+void GB_interrupt_request(GB_device* device, Byte ir);

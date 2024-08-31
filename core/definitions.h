@@ -10,11 +10,11 @@
 #define GB_PC_SERIAL_IR  0x58
 #define GB_PC_JOYPAD_IR  0x60
 
-#define GB_INTERRUPT_FLAG_VBLANK    0x01
-#define GB_INTERRUPT_FLAG_LCD       0x02
-#define GB_INTERRUPT_FLAG_TIMER     0x04
-#define GB_INTERRUPT_FLAG_SERIAL    0x08
-#define GB_INTERRUPT_FLAG_JOYPAD    0x10
+#define GB_INTERRUPT_FLAG_VBLANK         0x01
+#define GB_INTERRUPT_FLAG_LCD_STAT       0x02
+#define GB_INTERRUPT_FLAG_TIMER          0x04
+#define GB_INTERRUPT_FLAG_SERIAL         0x08
+#define GB_INTERRUPT_FLAG_JOYPAD         0x10
 
 struct GB_mmu_s;
 typedef struct GB_mmu_s GB_mmu;

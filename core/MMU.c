@@ -331,3 +331,7 @@ void GB_deviceResetMMU(GB_device* device) {
     mem->interruptRequest = 0;
     mem->KEY1 = 0;
 }
+
+void GB_interrupt_request(GB_device *device, unsigned char ir) {
+    device->mmu->interruptRequest = (device->mmu->interruptRequest | GB_INTERRUPT_FLAG_TIMER) & 0x1f;
+}
