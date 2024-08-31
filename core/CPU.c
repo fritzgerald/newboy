@@ -320,7 +320,16 @@ Byte ins_rrc_d(GB_device* device) { Byte c = device->cpu->registers.d & 0x01; de
 Byte ins_rrc_e(GB_device* device) { Byte c = device->cpu->registers.e & 0x01; device->cpu->registers.e = (device->cpu->registers.e >> 1) | c << 7; device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.e) | (c << 4); PC_INC(self, 2); return 8; }
 Byte ins_rrc_h(GB_device* device) { Byte c = device->cpu->registers.h & 0x01; device->cpu->registers.h = (device->cpu->registers.h >> 1) | c << 7; device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.h) | (c << 4); PC_INC(self, 2); return 8; }
 Byte ins_rrc_l(GB_device* device) { Byte c = device->cpu->registers.l & 0x01; device->cpu->registers.l = (device->cpu->registers.l >> 1) | c << 7; device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.l) | (c << 4); PC_INC(self, 2); return 8; }
-Byte ins_rrc_hl(GB_device* device)  {  Word hl = GB_register_get_HL(device->cpu); Byte value = GB_deviceReadByte(device, hl); Byte c = value & 0x01; value = (value >> 1) | c << 7; GB_deviceWriteByte(device,hl, value); device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.l) | (c << 4); PC_INC(self, 2); return 16; }
+Byte ins_rrc_hl(GB_device* device)  {  
+    Word hl = GB_register_get_HL(device->cpu); 
+    Byte value = GB_deviceReadByte(device, hl); 
+    Byte c = value & 0x01; 
+    value = (value >> 1) | c << 7; 
+    GB_deviceWriteByte(device,hl, value); 
+    device->cpu->registers.f = ZeroFlagValue(value) | (c << 4); 
+    PC_INC(self, 2); 
+    return 16; 
+}
 
 
 Byte ins_rla (GB_device* device) {
@@ -1086,7 +1095,7 @@ Byte ins_bit_d_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(d
 Byte ins_bit_e_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.e & 0x80) | FLAG_HALF | GB_cpu_get_carry_flag(device->cpu);  PC_INC(self, 2); return 8; }
 Byte ins_bit_h_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.h & 0x80) | FLAG_HALF | GB_cpu_get_carry_flag(device->cpu);  PC_INC(self, 2); return 8; }
 Byte ins_bit_l_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(device->cpu->registers.l & 0x80) | FLAG_HALF | GB_cpu_get_carry_flag(device->cpu);  PC_INC(self, 2); return 8; }
-Byte ins_bit_hl_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(GB_deviceReadByte(device, GB_register_get_HL(device->cpu) & 0x80)) | FLAG_HALF | GB_cpu_get_carry_flag(device->cpu);  PC_INC(self, 2); return 16; }
+Byte ins_bit_hl_7(GB_device* device) { device->cpu->registers.f = ZeroFlagValue(GB_deviceReadByte(device, GB_register_get_HL(device->cpu))  & 0x80) | FLAG_HALF | GB_cpu_get_carry_flag(device->cpu);  PC_INC(self, 2); return 16; }
 
 Byte ins_res_a_0(GB_device* device) { device->cpu->registers.a = device->cpu->registers.a & 0xfe; PC_INC(self, 2); return 8; }
 Byte ins_res_b_0(GB_device* device) { device->cpu->registers.b = device->cpu->registers.b & 0xfe; PC_INC(self, 2); return 8; }
