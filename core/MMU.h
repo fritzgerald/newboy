@@ -2,6 +2,7 @@
 
 #include "definitions.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #define GB_CARTRIDGE_SUCCESS    0
 #define GB_CARTRIDGE_FILE_ERROR -1
@@ -43,6 +44,7 @@ struct GB_mmu_s {
     Byte interruptEnable;
     Byte interruptRequest;
     Byte KEY1;
+    uint32_t timaCounter;
 };
 
 Byte GB_deviceReadByte(GB_device*, Word);

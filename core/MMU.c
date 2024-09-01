@@ -337,6 +337,7 @@ void GB_deviceResetMMU(GB_device* device) {
     mem->tac = 0;
     mem->interruptRequest = 0;
     mem->KEY1 = 0;
+    mem->timaCounter = 0;
 }
 
 void GB_interrupt_request(GB_device *device, unsigned char ir) {
