@@ -295,20 +295,27 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
     switch (localAddress) {
         case 0x01:
             mem->sb = value;
+            break;
         case 0x02:
             mem->sc = value;
+            break;
         case 0x04:
             mem->div = 0;
+            break;
         case 0x05:
             mem->tima = value;
+            break;
         case 0x06:
             mem->tma = value;
+            break;
         case 0x07:
             mem->tac = value;
             mem->isTimaEnabled = ((value & 0x4) > 0)? true : false;
             mem->timaClockCycles = GBTimaClockCyclesFromInt(value);
+            break;
         case 0x0F:
             mem->interruptRequest = value;
+            break;
     }
 }
 
@@ -333,5 +340,5 @@ void GB_deviceResetMMU(GB_device* device) {
 }
 
 void GB_interrupt_request(GB_device *device, unsigned char ir) {
-    device->mmu->interruptRequest = (device->mmu->interruptRequest | GB_INTERRUPT_FLAG_TIMER) & 0x1f;
+    device->mmu->interruptRequest = (device->mmu->interruptRequest | ir) & 0x1f;
 }

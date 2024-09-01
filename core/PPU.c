@@ -29,7 +29,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                     if(ppu->line == 144) {
                         // Enter vBlank             
                         ppu->lineMode = GB_PPU_MODE_VBLANK;
-                        device->mmu->interruptRequest |= GB_INTERRUPT_FLAG_VBLANK;
+                        GB_interrupt_request(device, GB_INTERRUPT_FLAG_VBLANK);
                     } else {
                         ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
                     }

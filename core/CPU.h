@@ -17,7 +17,9 @@ struct GB_cpu_s {
 
     // Interrupt master enable flag
     bool IME;
+    Byte prevCycles;
     unsigned int divCounter, timaCounter;
+    Byte enableINT, disableINT;
 };
 
 void GB_deviceCpuReset(GB_device* device);

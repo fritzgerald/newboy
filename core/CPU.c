@@ -104,9 +104,10 @@ void GB_deviceCpuReset(GB_device* device) {
     cpu->registers.sp = 0;
     cpu->registers.pc = 0;
     cpu->is_halted = false;
-    cpu->IME = 0;
+    cpu->IME = false;
     cpu->divCounter = 0;
     cpu->timaCounter = 0;
+    cpu->prevCycles = 0;
 }
 
 #define PC_INC(self, val) device->cpu->registers.pc += val
@@ -125,15 +126,15 @@ void GB_deviceCpuReset(GB_device* device) {
 Byte ins_nop(GB_device* device) { device->cpu->registers.pc++; return 4; }
 Byte ins_stop(GB_device* device) { 
     device->cpu->registers.pc+=2; 
-    device->cpu->is_halted = 1; 
+    //device->cpu->is_halted = true; 
     return 4; 
 }
 Byte ins_bad_ins(GB_device* device) { 
     device->cpu->is_halted = true; 
     return 20; 
 }
-Byte ins_di(GB_device* device) { device->cpu->IME = false; device->cpu->registers.pc++; return 4; }
-Byte ins_ei(GB_device* device) { device->cpu->IME = true; device->cpu->registers.pc++; return 4; }
+Byte ins_di(GB_device* device) { device->cpu->disableINT = 2; device->cpu->registers.pc++; return 4; }
+Byte ins_ei(GB_device* device) { device->cpu->enableINT = 2; device->cpu->registers.pc++; return 4; }
 
 Byte ins_scf(GB_device* device) { device->cpu->registers.f = GB_cpu_zero_flag(device->cpu) | FLAG_CARRY; device->cpu->registers.pc++; return 4; }
 Byte ins_ccf(GB_device* device) { device->cpu->registers.f = GB_cpu_zero_flag(device->cpu) | ((GB_cpu_get_carry_flag(device->cpu) == 0) ? FLAG_CARRY : 0); device->cpu->registers.pc++; return 4; }
@@ -984,7 +985,7 @@ Byte ins_ret_z(GB_device* device)  { if(GB_cpu_zero_flag(device->cpu) != 0) { de
 Byte ins_ret_nc(GB_device* device) { if(GB_cpu_get_carry_flag(device->cpu) == 0) { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 20; } PC_INC(self, 1); return 8; }
 Byte ins_ret_c(GB_device* device)  { if(GB_cpu_get_carry_flag(device->cpu) != 0) { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 20; } PC_INC(self, 1); return 8; }
 Byte ins_ret(GB_device* device)    { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 16; }
-Byte ins_reti(GB_device* device)   { device->cpu->registers.pc = GB_cpu_pop_stack(device); device->cpu->IME = true; return 16; }
+Byte ins_reti(GB_device* device)   { device->cpu->registers.pc = GB_cpu_pop_stack(device); device->cpu->enableINT = 2; return 16; }
 
 Byte ins_pop_bc(GB_device* device) { GB_register_set_BC(device->cpu, GB_cpu_pop_stack(device)); PC_INC(self, 1); return 12; }
 Byte ins_pop_de(GB_device* device) { GB_register_set_DE(device->cpu, GB_cpu_pop_stack(device)); PC_INC(self, 1); return 12; }
@@ -1306,7 +1307,7 @@ unsigned int GB_TIMA_clock_inc_value(GBTimaClockCycles cycles) {
 }
 
 void _GB_handle_interrupt(GB_device* device) {
-    if(device->cpu->IME == false && device->cpu->is_halted == false ) {
+    if(device->cpu->IME == false && device->cpu->is_halted == false) {
         return;
     }
 
@@ -1316,10 +1317,11 @@ void _GB_handle_interrupt(GB_device* device) {
         return;
     } else if (true == device->cpu->is_halted) {
         // restart CPU
-        device->cpu->is_halted = true;
+        device->cpu->is_halted = false;
         return;
     }
 
+    device->cpu->IME = false;
     if((interrupt & GB_INTERRUPT_FLAG_VBLANK) == GB_INTERRUPT_FLAG_VBLANK) {
         device->mmu->interruptRequest = device->mmu->interruptRequest & ~(GB_INTERRUPT_FLAG_VBLANK);
         GB_cpu_push_stack(device, device->cpu->registers.pc);
@@ -1347,25 +1349,7 @@ Byte GB_deviceCpuStep(GB_device* device) {
     GB_cpu* cpu = device->cpu;
     GB_mmu* mmu = device->mmu;
 
-
-    _GB_handle_interrupt(device);
-    if(cpu->is_halted == true) {
-        // if the cpu is halted no operation can be performed exept interups
-        return 0;
-    }
-
-    Byte ins_code = GB_cpu_fetch_byte(device, 0);
-    ins_func insToExec = ins_table[ins_code];
-    //printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
-
-    Byte cycles = (*insToExec)(device);
-    Byte ticks = cycles / 4;
-
-    if(cpu->registers.pc == GB_PC_START) {
-        // trying to execute rom code so leave bios mode.
-        mmu->in_bios = false;
-    }
-
+    Byte ticks = cpu->prevCycles / 4;
     // update DIV register
     cpu->divCounter += ticks;
     if(cpu->divCounter >= DIV_CLOCK_INC) { // TODO: Handle double speed
@@ -1383,11 +1367,37 @@ Byte GB_deviceCpuStep(GB_device* device) {
                     // overflow
                     mmu->tima = mmu->tma;
                     GB_interrupt_request(device, GB_INTERRUPT_FLAG_TIMER);
+                    mmu->interruptRequest = mmu->interruptRequest;
                 }
             }
         }
         cpu->timaCounter %= maxCycles;
     }
 
-    return cycles;
+    _GB_handle_interrupt(device);
+    if(cpu->is_halted == true) {
+        // if the cpu is halted no operation can be performed exept interups
+        return 0;
+    }
+
+    Byte ins_code = GB_cpu_fetch_byte(device, 0);
+    ins_func insToExec = ins_table[ins_code];
+    //printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
+
+    cpu->prevCycles = (*insToExec)(device);
+
+    if(cpu->registers.pc == GB_PC_START) {
+        // trying to execute rom code so leave bios mode.
+        mmu->in_bios = false;
+    }
+
+    if (cpu->enableINT != 0 && --cpu->enableINT == 0) {
+        cpu->IME = true;
+    }
+
+    if (cpu->disableINT != 0 && --cpu->disableINT == 0) {
+        cpu->IME = false;
+    }
+
+    return cpu->prevCycles;
 }
