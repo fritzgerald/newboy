@@ -1,4 +1,5 @@
 #import "GameRenderer.h"
+#include <stdbool.h>
 #include <CoreFoundation/CFCGTypes.h>
 #include <objc/objc.h>
 #include <CoreGraphics/CGGeometry.h>
@@ -39,7 +40,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "cpu_instrs.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
 
     _frameNum = 0;
 
@@ -64,24 +65,14 @@
 -(CGImageRef)renderBackgroundFrame {
     int strIdx = 0;
     char console[100];
-    while ((_gameboydevice->mmu->interruptRequest & GB_INTERRUPT_FLAG_VBLANK) == 0) {
+    // if(_gameboydevice->cpu->is_halted == false)
+    while (_gameboydevice->ppu->frameReady == false) {
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
-        GB_devicePPUstep(_gameboydevice, cycles);
-        
-        if(GB_deviceReadByte(_gameboydevice, 0xFF02) == 0x81) {
-            unsigned char sb = GB_deviceReadByte(_gameboydevice, 0xFF01);
-            GB_deviceWriteByte(_gameboydevice, 0xFF02, 0x01);
-            console[strIdx] = sb;
-            strIdx++;
-            if(sb == '\n' || strIdx == 99) {
-                NSLog(@"%@", [NSString stringWithCString:console length:strIdx]);
-                strIdx = 0;
-            }
-        }
+        GB_devicePPUstep(_gameboydevice, 4);
     }
     // TODO: Render Frame
     // Frame done
-    _gameboydevice->mmu->interruptRequest &= ~(GB_INTERRUPT_FLAG_VBLANK);
+    _gameboydevice->ppu->frameReady = false;
     uint8_t* data =  GB_ppu_gen_frame_bitmap(_gameboydevice);
     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
         initWithBitmapDataPlanes: &data 
@@ -93,6 +84,34 @@
         colorSpaceName:NSDeviceRGBColorSpace 
         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
         bytesPerRow:160 * 4
+        bitsPerPixel:32];
+    
+    //free(data);
+    return [img CGImage];
+}
+
+-(CGImageRef)renderBackground {
+    int strIdx = 0;
+    char console[100];
+    // if(_gameboydevice->cpu->is_halted == false)
+    while (_gameboydevice->ppu->frameReady == false){
+        unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
+        GB_devicePPUstep(_gameboydevice, cycles);
+    }
+    // TODO: Render Frame
+    // Frame done
+    _gameboydevice->ppu->frameReady = false;
+    uint8_t* data =  GB_ppu_gen_background_bitmap(_gameboydevice);
+    NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
+        initWithBitmapDataPlanes: &data 
+        pixelsWide:256 
+        pixelsHigh:256 
+        bitsPerSample:8 
+        samplesPerPixel: 4 
+        hasAlpha:YES isPlanar:NO
+        colorSpaceName:NSDeviceRGBColorSpace 
+        bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
+        bytesPerRow:256 * 4
         bitsPerPixel:32];
     
     //free(data);

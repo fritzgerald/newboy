@@ -257,6 +257,8 @@ int GB_deviceloadRom(GB_device* device, const char* filePath) {
 Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
     int localAddress = addr & 0xFF;
     switch (localAddress) {
+        case 0x00:
+            return 0x0f;
         case 0x01:
             return mem->sb;
         case 0x02:
@@ -264,6 +266,9 @@ Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
         case 0x04:
             return mem->div;
         case 0x05:
+            if (mem->timaStatus == GBTimaReloading) {
+                return 0;
+            }
             return mem->tima;
         case 0x06:
             return mem->tma;
@@ -303,10 +308,15 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
             mem->div = 0;
             break;
         case 0x05:
-            mem->tima = value;
+            if (mem->timaStatus != GBTimaReloaded) {
+                mem->tima = value;
+            }
             break;
         case 0x06:
             mem->tma = value;
+            if (mem->timaStatus != GBTimaRunning) {
+                mem->tima = value;
+            }
             break;
         case 0x07:
             mem->tac = value;

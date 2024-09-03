@@ -98,11 +98,11 @@ void GB_cpu_set_carry(GB_cpu *cpu, Byte carryByte) {
 void GB_deviceCpuReset(GB_device* device) {
     GB_cpu *cpu = device->cpu;
 
-    GB_register_set_AF(cpu, 0);
-    GB_register_set_BC(cpu, 0);
-    GB_register_set_DE(cpu, 0);
-    GB_register_set_BC(cpu, 0);
-    cpu->registers.sp = 0;
+    GB_register_set_AF(cpu, 0x01B0);
+    GB_register_set_BC(cpu, 0x0013);
+    GB_register_set_DE(cpu, 0x00D8);
+    GB_register_set_BC(cpu, 0x014D);
+    cpu->registers.sp = 0xFFFE;
     cpu->registers.pc = 0;
     cpu->is_halted = false;
     cpu->IME = false;
@@ -127,7 +127,7 @@ Byte ins_nop(GB_device* device) { device->cpu->registers.pc++; return 4; }
 Byte ins_stop(GB_device* device) { 
     device->cpu->registers.pc+=2;
     device->mmu->div = 0;
-    //device->cpu->is_halted = true; 
+    device->cpu->is_halted = true; 
     return 4; 
 }
 Byte ins_bad_ins(GB_device* device) { 
@@ -251,11 +251,31 @@ Byte ins_ld_l_hl(GB_device* device) {device->cpu->registers.l = GB_deviceReadByt
 Byte ins_ld_xx_sp(GB_device* device) { Word xx = GB_cpu_fetch_word(device, 1); GB_deviceWriteWord(device, xx, device->cpu->registers.sp); PC_INC(self, 3); return 20; }
 Byte ins_ld_xx_a(GB_device* device) { Word xx = GB_cpu_fetch_word(device, 1); GB_deviceWriteByte(device, xx, device->cpu->registers.a); PC_INC(self, 3); return 16; }
 
-Byte ins_ld_ff00x_a(GB_device* device) { Byte delta = GB_cpu_fetch_byte(device, 1); GB_deviceWriteByte(device,0xff00 + delta, device->cpu->registers.a); PC_INC(self, 2); return 12; }
-Byte ins_ld_ff00c_a(GB_device* device) { GB_deviceWriteByte(device, 0xff00 + device->cpu->registers.c, device->cpu->registers.a); PC_INC(self, 1); return 8; }
+Byte ins_ld_ff00x_a(GB_device* device) { 
+    Byte delta = GB_cpu_fetch_byte(device, 1); 
+    GB_deviceWriteByte(device,0xff00 + delta, device->cpu->registers.a); 
+    PC_INC(self, 2); 
+    return 12; 
+}
 
-Byte ins_ld_a_ff00x(GB_device* device) { Byte delta = GB_cpu_fetch_byte(device, 1); device->cpu->registers.a = GB_deviceReadByte(device, 0xff00 + delta); PC_INC(self, 2); return 12; }
-Byte ins_ld_a_ff00c(GB_device* device) { device->cpu->registers.a = GB_deviceReadByte(device, 0xff00 + device->cpu->registers.c); PC_INC(self, 1); return 8; }
+Byte ins_ld_ff00c_a(GB_device* device) { 
+    GB_deviceWriteByte(device, 0xff00 + device->cpu->registers.c, device->cpu->registers.a);
+    PC_INC(self, 1); 
+    return 8;
+}
+
+Byte ins_ld_a_ff00x(GB_device* device) { 
+    Byte delta = GB_cpu_fetch_byte(device, 1); 
+    device->cpu->registers.a = GB_deviceReadByte(device, 0xff00 + delta); 
+    PC_INC(self, 2); 
+    return 12; 
+}
+
+Byte ins_ld_a_ff00c(GB_device* device) { 
+    device->cpu->registers.a = GB_deviceReadByte(device, 0xff00 + device->cpu->registers.c); 
+    PC_INC(self, 1); 
+    return 8; 
+}
 
 Byte ins_ld_a_bc(GB_device* device) { device->cpu->registers.a = GB_deviceReadByte(device, GB_register_get_BC(device->cpu)); PC_INC(self, 1); return 8; }
 Byte ins_ld_a_de(GB_device* device) { device->cpu->registers.a = GB_deviceReadByte(device, GB_register_get_DE(device->cpu)); PC_INC(self, 1); return 8; }
@@ -985,8 +1005,16 @@ Byte ins_ret_nz(GB_device* device) { if(GB_cpu_zero_flag(device->cpu) == 0) { de
 Byte ins_ret_z(GB_device* device)  { if(GB_cpu_zero_flag(device->cpu) != 0) { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 20; } PC_INC(self, 1); return 8; }
 Byte ins_ret_nc(GB_device* device) { if(GB_cpu_get_carry_flag(device->cpu) == 0) { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 20; } PC_INC(self, 1); return 8; }
 Byte ins_ret_c(GB_device* device)  { if(GB_cpu_get_carry_flag(device->cpu) != 0) { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 20; } PC_INC(self, 1); return 8; }
-Byte ins_ret(GB_device* device)    { device->cpu->registers.pc = GB_cpu_pop_stack(device); return 16; }
-Byte ins_reti(GB_device* device)   { device->cpu->registers.pc = GB_cpu_pop_stack(device); device->cpu->enableINT = 2; return 16; }
+Byte ins_ret(GB_device* device)    { 
+    device->cpu->registers.pc = GB_cpu_pop_stack(device); 
+    return 16; 
+}
+
+Byte ins_reti(GB_device* device)   { 
+    device->cpu->registers.pc = GB_cpu_pop_stack(device); 
+    device->cpu->enableINT = 2; 
+    return 16; 
+}
 
 Byte ins_pop_bc(GB_device* device) { GB_register_set_BC(device->cpu, GB_cpu_pop_stack(device)); PC_INC(self, 1); return 12; }
 Byte ins_pop_de(GB_device* device) { GB_register_set_DE(device->cpu, GB_cpu_pop_stack(device)); PC_INC(self, 1); return 12; }
@@ -1345,9 +1373,40 @@ void _GB_handle_interrupt(GB_device* device) {
     }
 }
 
+void GB_update_tima_status(GB_device* device) {
+    GB_mmu* mmu = device->mmu;
+    if (mmu->timaStatus == GBTimaReloaded) {
+        mmu->timaStatus = GBTimaRunning;
+    } else if (mmu->timaStatus == GBTimaReloading) {
+        GB_interrupt_request(device, GB_INTERRUPT_FLAG_TIMER);
+        mmu->timaStatus = GBTimaReloaded;
+    }
+}
+
+void GB_update_tima_counter(GB_device* device, int ticks) {
+    GB_mmu* mmu = device->mmu;
+    // Update TIMER counter if enabled
+    if (mmu->isTimaEnabled == true) {
+        uint16_t maxCycles = GB_TIMA_clock_inc_value(mmu->timaClockCycles);
+        for (int i = 0; i < ticks; i++) {
+            mmu->timaCounter++;
+            if ((mmu->timaCounter % maxCycles) == 0) {
+                mmu->tima++;
+                if (mmu->tima == 0) {
+                    // overflow
+                    mmu->tima = mmu->tma;
+                    mmu->timaStatus = GBTimaReloading;
+                }
+            }
+        }
+    }
+}
+
 Byte GB_deviceCpuStep(GB_device* device) {
     GB_cpu* cpu = device->cpu;
     GB_mmu* mmu = device->mmu;
+
+    GB_update_tima_status(device);
 
     Byte ticks = cpu->prevCycles / 4;
     // update DIV register
@@ -1357,21 +1416,7 @@ Byte GB_deviceCpuStep(GB_device* device) {
     }
     cpu->divCounter %= DIV_CLOCK_INC;
 
-    // Update TIMER counter if enabled
-    if (mmu->isTimaEnabled == true) {
-        uint8_t maxCycles = GB_TIMA_clock_inc_value(mmu->timaClockCycles);
-        for (int i = 0; i < ticks; i++) {
-            mmu->timaCounter++;
-            if ((mmu->timaCounter % maxCycles) == 0) {
-                mmu->tima++;
-                if (mmu->tima == 0) {
-                    // overflow
-                    mmu->tima = mmu->tma;
-                    GB_interrupt_request(device, GB_INTERRUPT_FLAG_TIMER);
-                }
-            }
-        }
-    }
+    GB_update_tima_counter(device, ticks);
 
     _GB_handle_interrupt(device);
     if(cpu->is_halted == true) {
@@ -1382,8 +1427,8 @@ Byte GB_deviceCpuStep(GB_device* device) {
 
     Byte ins_code = GB_cpu_fetch_byte(device, 0);
     ins_func insToExec = ins_table[ins_code];
-    //printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
-
+    // printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
+    
     cpu->prevCycles = (*insToExec)(device);
 
     if(cpu->registers.pc == GB_PC_START) {

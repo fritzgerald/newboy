@@ -65,6 +65,8 @@ struct GB_ppu_s {
     bool isMode1InterruptEnabled;
     bool isMode2InterruptEnabled;
 
+    bool frameReady;
+
     //  LCD control bits
     bool isLCDEnabled;
     GB_tile_bit_value windowTileMap;

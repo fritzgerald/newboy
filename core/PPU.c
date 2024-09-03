@@ -9,10 +9,13 @@
 #include <strings.h>
 #include <stdbool.h>
 #include <sys/_types/_u_int32_t.h>
+#include "CPU.h"
+
+#define CLOCK_INC 2
 
 void GB_deviceResetPPU(GB_device* ppu);
 uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset);
-void GB_RenderProcessFrame(GB_device* device, Byte cycles);
+int GB_RenderProcessFrame(GB_device* device, Byte cycles);
 void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan);
 
 void GB_devicePPUstep(GB_device* device, Byte cycle) {
@@ -22,24 +25,40 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
     for (int update = 0; update < tick; update++) {
         switch (ppu->lineMode & 0x3) {
             case GB_PPU_MODE_HBLANK:
-                if(ppu->clock >= 204) {
+                if(ppu->clock >= 51) {
                     // exit from HBlank
                     ppu->clock = 0;
+
+                    for (int i = 0; i < 160; i++) {
+                        int scanX = ppu->clock + i;
+                        GB_updateBackgroundPixel(device, ppu->line, i);
+                        //printf("finished rendering scanX %d\n", scanX);
+                    }
                     ppu->line++;
+                    if (ppu->lineCMP == ppu->line && ppu->isLYCInterruptEnabled) {
+                        GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                        if (ppu->scrollX == 11) {
+                            ppu->scrollX = ppu->scrollX;
+                        }
+                    }
                     if(ppu->line == 144) {
                         // Enter vBlank             
                         ppu->lineMode = GB_PPU_MODE_VBLANK;
                         GB_interrupt_request(device, GB_INTERRUPT_FLAG_VBLANK);
+                        ppu->frameReady = true;
                     } else {
                         ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
+                        if (ppu->isMode2InterruptEnabled) {
+                            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                        }
                     }
                 } else {
-                    u_int32_t newClock = ppu->clock + 1;
+                    u_int32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
             case GB_PPU_MODE_VBLANK:
-                if(ppu->clock >= 456) {
+                if(ppu->clock >= 114) {
                     // exit from HBlank
                     ppu->clock = 0;
                     ppu->line++;
@@ -47,27 +66,36 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                         // End of vBlank goto OAM scan
                         ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
                         ppu->line = 0;
+                        if (ppu->isMode2InterruptEnabled) {
+                            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                        }
+                    }
+                    if (ppu->lineCMP == ppu->line && ppu->isLYCInterruptEnabled) {
+                        GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
                     }
                 } else {
-                    u_int32_t newClock = ppu->clock + tick;
+                    u_int32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
             case GB_PPU_MODE_OAM_SCAN:
-                if(ppu->clock >= 80) {
+                if(ppu->clock >= 20) {
                     ppu->clock = 0;
                     ppu->lineMode = GB_PPU_MODE_DRAW;
                 }  else {
-                    u_int32_t newClock = ppu->clock + 1;
+                    u_int32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
             case GB_PPU_MODE_DRAW:
-                GB_RenderProcessFrame(device, 1);
-                break;
+                if (GB_RenderProcessFrame(device, 1) != 0) {
+                    u_int32_t newClock = ppu->clock + CLOCK_INC;
+                    ppu->clock = newClock;
+                }
+                u_int32_t newClock = ppu->clock + CLOCK_INC;
+                ppu->clock = newClock;
         }
     }
-
 }
 
 Byte GB_deviceVramRead(GB_device* device, Word addr) {
@@ -76,10 +104,14 @@ Byte GB_deviceVramRead(GB_device* device, Word addr) {
 
 void GB_deviceVramWrite(GB_device* device, Word addr, Byte data) {
     GB_ppu *ppu = device->ppu;
+    
     Word localAddr = addr & 0x1FFF;
     ppu->vRam[localAddr] = data;
 
     if(localAddr >= 0x1800) {
+        if(localAddr == 0x1800) {
+            localAddr = localAddr;
+        }
         return; // not updating tile data
     }
     // Update tile data on the fly to ease the rendering process
@@ -104,14 +136,14 @@ void GB_deviceVramWrite(GB_device* device, Word addr, Byte data) {
 }
 
 void GB_ppu_update_control_flags(GB_ppu* ppu) {
-    ppu->isBGWinEnabled = GB_tile_bit_value_from_int(ppu->controlBit & (1));
-    ppu->objEnable = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 1));
-    ppu->objSize = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 2));
-    ppu->bgTileArea = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 3));
-    ppu->bgWinTileArea = GB_tile_bit_value_from_int( ppu->controlBit & (1 << 4));
-    ppu->isWindowEnabled = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 5));
-    ppu->windowTileMap = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 6));
-    ppu->LcdPpuEnable = GB_tile_bit_value_from_int(ppu->controlBit & (1 << 7));
+    ppu->isBGWinEnabled = GB_tile_bit_value_from_int(ppu->controlBit & 1);
+    ppu->objEnable = GB_tile_bit_value_from_int(ppu->controlBit & 0x2);
+    ppu->objSize = GB_tile_bit_value_from_int(ppu->controlBit & 0x4);
+    ppu->bgTileArea = GB_tile_bit_value_from_int(ppu->controlBit & 0x8);
+    ppu->bgWinTileArea = GB_tile_bit_value_from_int(ppu->controlBit & 0x10);
+    ppu->isWindowEnabled = GB_tile_bit_value_from_int(ppu->controlBit & 0x20);
+    ppu->windowTileMap = GB_tile_bit_value_from_int(ppu->controlBit & 0x40);
+    ppu->LcdPpuEnable = GB_tile_bit_value_from_int(ppu->controlBit & 0x80);
 }
 
 void GB_ppu_update_status_bits(GB_ppu* ppu, Byte data) {
@@ -305,6 +337,7 @@ void GB_deviceResetPPU(GB_device* device) {
     ppu->isBGWinEnabled = GB_tile_bit_value_0;
     ppu->controlBit = 0;
     ppu->dmaValue = 0;
+    ppu->frameReady = false;
 }
 
 unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId) {
@@ -358,7 +391,10 @@ void setShort(char* tab, int startIdx, short value) {
 void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     Word scx = device->ppu->scrollX;
     Word scy = device->ppu->scrollY;
-    u_int32_t pixelX = (xScan + scx) % 256;
+    if(scx > 0) {
+        scx = scx;
+    }
+    u_int32_t pixelX = (xScan + scx * 2) % 256;
     u_int32_t pixelY = (line + scy) % 256;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
@@ -374,35 +410,40 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     device->ppu->frameBuffer[GBBackgroundFrameBuffer][frameIndex] = value;
 }
 
-void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
+int GB_RenderProcessFrame(GB_device* device, Byte cycles) {
     // Between 172 and 289 dots
     // TODO: Handle draw penalities
     GB_ppu* ppu = device->ppu;
-    if(ppu->clock >= 172) {
-        ppu->clock = 0;
+    if(ppu->clock >= 43) {
+        ppu->clock = -CLOCK_INC;
         ppu->lineMode = GB_PPU_MODE_HBLANK;
+        if (ppu->isMode0InterruptEnabled) {
+            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+            return 1;
+        }
         // printf("finished rendering line %d\n", ppu->line);
         // TODO: Line can be rendered here.
-        return;
+        return 0;
     }
-    if(ppu->clock < 160) {
-        int fetchToPerform = cycles;
-        for (int i = 0; i < fetchToPerform; i++) {
-            int scanX = ppu->clock + i;
-            GB_updateBackgroundPixel(device, ppu->line, scanX);
-            //printf("finished rendering scanX %d\n", scanX);
-        }
-    }
-
-    u_int32_t newClock = ppu->clock + cycles;
-    ppu->clock = newClock;
+    // if(ppu->clock < 160) {
+    //     int fetchToPerform = cycles;
+    //     for (int i = 0; i < fetchToPerform; i++) {
+    //         int scanX = ppu->clock + i;
+    //         GB_updateBackgroundPixel(device, ppu->line, scanX);
+    //         //printf("finished rendering scanX %d\n", scanX);
+    //     }
+    // }
 }
 
 uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset) {
-    Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
+    // Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
+    Word startAddr = 0x9800;
 
     if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
-        int8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
+        uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
+        if (tileIdxData >= 128) {
+            return tileIdxData;
+        }
         return 256 + tileIdxData;
     }
     return GB_deviceReadByte(device, startAddr + offset);

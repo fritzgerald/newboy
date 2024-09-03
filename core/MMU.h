@@ -13,16 +13,22 @@
 #define GB_CARTRIDGE_RAM_SIZE 0x0149
 
 typedef enum {
+    GBTimaClockCycles256,
     GBTimaClockCycles4,
     GBTimaClockCycles16,
-    GBTimaClockCycles64,
-    GBTimaClockCycles256
+    GBTimaClockCycles64
 } GBTimaClockCycles;
 
 typedef enum {
     GBCPUSpeedSingle,
     GBCPUSpeedDouble
 } GBCPUSpeed;
+
+typedef enum {
+    GBTimaRunning,
+    GBTimaReloading,
+    GBTimaReloaded
+} GBTimaState;
 
 struct GB_mmu_s {
     bool in_bios;
@@ -44,6 +50,7 @@ struct GB_mmu_s {
     Byte interruptEnable;
     Byte interruptRequest;
     Byte KEY1;
+    GBTimaState timaStatus;
     uint32_t timaCounter;
 };
 
