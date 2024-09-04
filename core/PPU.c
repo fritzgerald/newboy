@@ -15,7 +15,7 @@
 
 void GB_deviceResetPPU(GB_device* ppu);
 uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset);
-int GB_RenderProcessFrame(GB_device* device, Byte cycles);
+void GB_RenderProcessFrame(GB_device* device, Byte cycles);
 void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan);
 
 void GB_devicePPUstep(GB_device* device, Byte cycle) {
@@ -25,15 +25,9 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
     for (int update = 0; update < tick; update++) {
         switch (ppu->lineMode & 0x3) {
             case GB_PPU_MODE_HBLANK:
-                if(ppu->clock >= 51) {
+                if(ppu->clock >= 204) {
                     // exit from HBlank
                     ppu->clock = 0;
-
-                    for (int i = 0; i < 160; i++) {
-                        int scanX = ppu->clock + i;
-                        GB_updateBackgroundPixel(device, ppu->line, i);
-                        //printf("finished rendering scanX %d\n", scanX);
-                    }
                     ppu->line++;
                     if (ppu->lineCMP == ppu->line && ppu->isLYCInterruptEnabled) {
                         GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
@@ -58,7 +52,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                 }
                 break;
             case GB_PPU_MODE_VBLANK:
-                if(ppu->clock >= 114) {
+                if(ppu->clock >= 456) {
                     // exit from HBlank
                     ppu->clock = 0;
                     ppu->line++;
@@ -79,7 +73,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                 }
                 break;
             case GB_PPU_MODE_OAM_SCAN:
-                if(ppu->clock >= 20) {
+                if(ppu->clock >= 80) {
                     ppu->clock = 0;
                     ppu->lineMode = GB_PPU_MODE_DRAW;
                 }  else {
@@ -88,10 +82,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                 }
                 break;
             case GB_PPU_MODE_DRAW:
-                if (GB_RenderProcessFrame(device, 1) != 0) {
-                    u_int32_t newClock = ppu->clock + CLOCK_INC;
-                    ppu->clock = newClock;
-                }
+                GB_RenderProcessFrame(device, cycle);
                 u_int32_t newClock = ppu->clock + CLOCK_INC;
                 ppu->clock = newClock;
         }
@@ -109,9 +100,6 @@ void GB_deviceVramWrite(GB_device* device, Word addr, Byte data) {
     ppu->vRam[localAddr] = data;
 
     if(localAddr >= 0x1800) {
-        if(localAddr == 0x1800) {
-            localAddr = localAddr;
-        }
         return; // not updating tile data
     }
     // Update tile data on the fly to ease the rendering process
@@ -399,40 +387,36 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;
-    //uint32 bgTileOffset = bgPixelOffset / 8;
 
     uint16_t tileIndex = _GB_tileindexWithOffset(device, bgPixelOffset);
     uint32_t column = pixelX % 8;
     uint32_t row  = pixelY % 8;
     GB_tile_pixel_value value = device->ppu->tiles[tileIndex][row][column];
     uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
-    //printf("updating pixel t:%d, r:%d, c%d, f:%d\n", tileIndex, row, column, frameIndex);
     device->ppu->frameBuffer[GBBackgroundFrameBuffer][frameIndex] = value;
 }
 
-int GB_RenderProcessFrame(GB_device* device, Byte cycles) {
+void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
     // Between 172 and 289 dots
     // TODO: Handle draw penalities
     GB_ppu* ppu = device->ppu;
-    if(ppu->clock >= 43) {
+    if(ppu->clock >= 172) {
         ppu->clock = -CLOCK_INC;
         ppu->lineMode = GB_PPU_MODE_HBLANK;
         if (ppu->isMode0InterruptEnabled) {
             GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
-            return 1;
         }
         // printf("finished rendering line %d\n", ppu->line);
         // TODO: Line can be rendered here.
-        return 0;
     }
-    // if(ppu->clock < 160) {
-    //     int fetchToPerform = cycles;
-    //     for (int i = 0; i < fetchToPerform; i++) {
-    //         int scanX = ppu->clock + i;
-    //         GB_updateBackgroundPixel(device, ppu->line, scanX);
-    //         //printf("finished rendering scanX %d\n", scanX);
-    //     }
-    // }
+    if(ppu->clock < 160) {
+        int fetchToPerform = cycles;
+        for (int i = 0; i < fetchToPerform; i++) {
+            int scanX = ppu->clock + i;
+            GB_updateBackgroundPixel(device, ppu->line, scanX);
+            //printf("finished rendering scanX %d\n", scanX);
+        }
+    }
 }
 
 uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset) {
