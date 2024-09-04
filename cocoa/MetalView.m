@@ -1,4 +1,6 @@
 #import "MetalView.h"
+#include <QuartzCore/CAFrameRateRange.h>
+#include <AppKit/AppKit.h>
 #include <Foundation/Foundation.h>
 #include <QuartzCore/QuartzCore.h>
 
@@ -41,7 +43,11 @@
 - (void)viewDidMoveToWindow {
     [super viewDidMoveToWindow];
 
-    [self setupCVDisplayLinkForScreen:self.window.screen];
+    CADisplayLink *displayLink = [self displayLinkWithTarget:self selector:@selector(renderFrame:)];
+    displayLink.preferredFrameRateRange = CAFrameRateRangeMake(55, 65, 59);
+    [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+
+    //[self setupCVDisplayLinkForScreen:self.window.screen];
     [self resizeDrawable:self.window.screen.backingScaleFactor];
 }
 
@@ -106,7 +112,8 @@
 
     // Set DispatchRenderLoop as the callback function and
     // supply _displaySource as the argument to the callback.
-    cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &DispatchRenderLoop, (__bridge void*)_displaySource);
+    // cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &DispatchRenderLoop, (__bridge void*)_displaySource);
+    
 
     if(cvReturn != kCVReturnSuccess) {
         return NO;
@@ -140,6 +147,12 @@
 
 - (void)render {
     [self.delegate renderToMetalLayer:_metalLayer];
+}
+
+- (void)renderFrame:(id)sender {
+    // 'DispatchRenderLoop' is always called on a secondary thread.  Merge the dispatch source
+    // setup for the main queue so that rendering occurs on the main thread
+    [self render];
 }
 
 - (void)windowWillClose:(NSNotification*)notification

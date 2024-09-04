@@ -74,8 +74,8 @@ struct GB_ppu_s {
     GB_tile_bit_value bgWinTileArea;
     GB_tile_bit_value bgTileArea;
     GB_tile_bit_value objSize;
-    GB_tile_bit_value objEnable;
-    GB_tile_bit_value isBGWinEnabled;
+    bool objEnable;
+    bool isBGWinEnabled;
     GB_tile_bit_value LcdPpuEnable;
     Byte controlBit; // storage value to ease reads
     Byte dmaValue;
