@@ -66,9 +66,9 @@
     int strIdx = 0;
     char console[100];
     // if(_gameboydevice->cpu->is_halted == false)
-    while (_gameboydevice->ppu->frameReady == false) {
+    while (_gameboydevice->ppu->frameReady == false){
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
-        GB_devicePPUstep(_gameboydevice, 4);
+        GB_devicePPUstep(_gameboydevice, cycles);
     }
     // TODO: Render Frame
     // Frame done

@@ -118,7 +118,7 @@ void GB_deviceVramWrite(GB_device* device, Word addr, Byte data) {
         unsigned int lsb = byte1 & mask;
         unsigned int msb = byte2 & mask;
 
-        GB_tile_pixel_value pixel_value = GB_tile_pixel_value_from_int((msb >> bit_shift_length) | ((lsb >> bit_shift_length) << 1));
+        GB_tile_pixel_value pixel_value = GB_tile_pixel_value_from_int((lsb >> bit_shift_length) | ((msb >> bit_shift_length) << 1));
         ppu->tiles[tile_index][row_index][pixel_index] = pixel_value;
     }
 }
@@ -251,7 +251,7 @@ Byte GB_devicePPUIORead(GB_device* device, Word addr) {
 }
 
 GB_tile_pixel_value GB_tile_pixel_value_from_int(int value) {
-    switch (value) {
+    switch (value & 0x3) {
         case 0:
             return GB_Tile_pixel_0;
         case 1:
@@ -334,9 +334,9 @@ unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value t
         case GB_Tile_pixel_0:
             return 0xFFFFFFFF;
         case GB_Tile_pixel_1:
-            return 0xD3D3D3FF;
+            return 0x404040FF;
         case GB_Tile_pixel_2:
-            return 0xA9A9A9FF;
+            return 0x202020FF;
         case GB_Tile_pixel_3:
             return 0x000000FF;
         default:
@@ -480,9 +480,9 @@ uint8_t* GB_ppu_gen_background_bitmap(GB_device* device) {
 
                 int p = startBGx + (column * 4) + (row * bgWidth) + startBGy;
                 // convert RGB to BGR
-                pixels[p + 0] = (color >> 8) & 0xFF; //blue
-                pixels[p + 1] = (color >> 16) & 0xFF; //green
-                pixels[p + 2] = (color >> 24) & 0xFF; //red
+                pixels[p + 0] = (color >> 8) & 0xFF;
+                pixels[p + 1] = (color >> 16) & 0xFF;
+                pixels[p + 2] = (color >> 24) & 0xFF;
                 pixels[p + 3] = color & 0xFF; //Alpha
             }
         }
