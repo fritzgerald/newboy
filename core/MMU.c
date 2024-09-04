@@ -11,6 +11,7 @@
 
 Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr);
 void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value);
+Byte _GBJoypadByteRepresentation(GB_mmu* mem);
 
 Byte GB_deviceReadByte(GB_device* device, Word addr) {
     GB_mmu* mem = device->mmu;
@@ -258,7 +259,7 @@ Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
     int localAddress = addr & 0xFF;
     switch (localAddress) {
         case 0x00:
-            return 0x0f;
+            return _GBJoypadByteRepresentation(mem);
         case 0x01:
             return mem->sb;
         case 0x02:
@@ -298,6 +299,9 @@ GBTimaClockCycles GBTimaClockCyclesFromInt(int value) {
 void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
     int localAddress = addr & 0xFF;
     switch (localAddress) {
+        case 0x00:
+            mem->joypadDpadSelected = (value & 0x10) ? false : true;
+            mem->joypadButtonSelected = (value & 0x20) ? false : true;
         case 0x01:
             mem->sb = value;
             break;
@@ -348,8 +352,45 @@ void GB_deviceResetMMU(GB_device* device) {
     mem->interruptRequest = 0;
     mem->KEY1 = 0;
     mem->timaCounter = 0;
+    mem->joypadState = (GBJoypadState) { false, false, false, false, false, false, false, false };;
+}
+
+Byte _GBJoypadByteRepresentation(GB_mmu* mem) {
+    if (mem->joypadButtonSelected) {
+        return 0x20 |
+            (mem->joypadState.startPressed ? 0 : 0x8) |
+            (mem->joypadState.selectPressed ? 0 : 0x4)|
+            (mem->joypadState.bPressed ? 0 : 0x2) |
+            (mem->joypadState.aPressed ? 0 : 0x1);
+    } else if (mem->joypadDpadSelected) {
+        return 0x10 |
+            (mem->joypadState.rightPressed ? 0 : 0x1) |
+            (mem->joypadState.leftPressed ? 0 : 0x2)|
+            (mem->joypadState.upPressed ? 0 : 0x4) |
+            (mem->joypadState.downPressed ? 0 : 0x8);
+    }
+    return 0x0F; // nothing selected return default value
+}
+
+void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad) {
+    if (
+        joypad.aPressed != device->mmu->joypadState.aPressed ||
+        joypad.bPressed != device->mmu->joypadState.bPressed ||
+        joypad.startPressed != device->mmu->joypadState.startPressed ||
+        joypad.selectPressed != device->mmu->joypadState.selectPressed ||
+        joypad.rightPressed != device->mmu->joypadState.rightPressed ||
+        joypad.leftPressed != device->mmu->joypadState.leftPressed ||
+        joypad.upPressed != device->mmu->joypadState.upPressed ||
+        joypad.aPressed != device->mmu->joypadState.aPressed ||
+        joypad.downPressed != device->mmu->joypadState.downPressed
+        ) {
+        device->mmu->joypadState = joypad;
+        GB_interrupt_request(device, GB_INTERRUPT_FLAG_JOYPAD);
+    }
 }
 
 void GB_interrupt_request(GB_device *device, unsigned char ir) {
     device->mmu->interruptRequest = (device->mmu->interruptRequest | ir) & 0x1f;
 }
+
+//GBJoypadState GBJoypadStateDefault() { return (GBJoypadState) { false, false, false, false, false, false, false, false }; }

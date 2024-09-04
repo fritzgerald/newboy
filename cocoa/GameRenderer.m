@@ -40,7 +40,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/Dr. Mario.gb");
 
     _frameNum = 0;
 
@@ -67,6 +67,7 @@
     char console[100];
     // if(_gameboydevice->cpu->is_halted == false)
     while (_gameboydevice->ppu->frameReady == false){
+        GBUpdateJoypadState(_gameboydevice, self.joypad);
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
         GB_devicePPUstep(_gameboydevice, cycles);
     }
@@ -95,6 +96,7 @@
     char console[100];
     // if(_gameboydevice->cpu->is_halted == false)
     while (_gameboydevice->ppu->frameReady == false){
+        GBUpdateJoypadState(_gameboydevice, self.joypad);
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
         GB_devicePPUstep(_gameboydevice, cycles);
     }

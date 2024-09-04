@@ -16,6 +16,20 @@
 #include "core/MMU.h"
 #include "core/Device.h"
 #include "core/PPU.h"
+#import <Carbon/Carbon.h>
+
+
+@interface MyView: NSView
+
+@end
+
+@implementation MyView
+
+- (BOOL)performKeyEquivalent:(NSEvent *)event {
+    return  YES;
+}
+
+@end
 
 @interface GBViewController() <MetalViewDelegate>
 
@@ -34,11 +48,10 @@
     return self;
 }
 
-// - (void)loadView {
-//     GBView* gbView = [[GBView alloc] init];
-//     gbView.delegate = self;
-//     self.view = gbView;
-// }
+- (void)loadView {
+    MyView* gbView = [[MyView alloc] init];
+    self.view = gbView;
+}
 
 
 - (void)viewDidLoad {
@@ -66,7 +79,29 @@
         selector:@selector(renderFrame)
         userInfo:nil
         repeats:YES];
-    //[self renderFrame];
+    
+    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^ NSEvent * (NSEvent * event){
+
+        switch (event.keyCode) {
+            case kVK_UpArrow:
+                break;
+            case kVK_DownArrow:
+                break;
+            case kVK_LeftArrow:
+                break;
+            case kVK_RightArrow:
+                break;
+            case kVK_ANSI_Z:
+                break;
+            case kVK_ANSI_X:
+                break;
+            case kVK_Return:
+                break;
+            case kVK_Escape:
+                break;
+        }
+        return nil;
+    }];
 }
 
 -(void)renderFrame {

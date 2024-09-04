@@ -30,6 +30,19 @@ typedef enum {
     GBTimaReloaded
 } GBTimaState;
 
+struct GBJoypadState_s {
+    bool aPressed;
+    bool bPressed;
+    bool selectPressed;
+    bool startPressed;
+    bool rightPressed;
+    bool leftPressed;
+    bool upPressed;
+    bool downPressed;
+};
+
+typedef struct GBJoypadState_s GBJoypadState;
+
 struct GB_mmu_s {
     bool in_bios;
 
@@ -52,6 +65,10 @@ struct GB_mmu_s {
     Byte KEY1;
     GBTimaState timaStatus;
     uint32_t timaCounter;
+
+    bool joypadDpadSelected;
+    bool joypadButtonSelected;
+    GBJoypadState joypadState;
 };
 
 Byte GB_deviceReadByte(GB_device*, Word);
@@ -61,3 +78,4 @@ void GB_deviceWriteWord(GB_device*, Word, Word);
 int  GB_deviceloadRom(GB_device* device, const char* filePath);
 void GB_deviceResetMMU(GB_device* device);
 void GB_interrupt_request(GB_device* device, Byte ir);
+void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad);
