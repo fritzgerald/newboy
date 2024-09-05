@@ -40,7 +40,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/Alleyway.gb");
 
     _frameNum = 0;
 
@@ -70,6 +70,7 @@
         GBUpdateJoypadState(_gameboydevice, self.joypad);
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
         GB_devicePPUstep(_gameboydevice, cycles);
+        GBProcessMemEvents(_gameboydevice, cycles);
     }
     // TODO: Render Frame
     // Frame done

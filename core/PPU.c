@@ -26,6 +26,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
     GB_ppu *ppu = device->ppu;
     Byte tick = cycle / 4;
 
+    bool sendStatInterrupt = false;
     for (int update = 0; update < tick; update++) {
         switch (ppu->lineMode & 0x3) {
             case GB_PPU_MODE_HBLANK:
@@ -34,10 +35,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                     ppu->clock = 0;
                     ppu->line++;
                     if (ppu->lineCMP == ppu->line && ppu->isLYCInterruptEnabled) {
-                        GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
-                        if (ppu->scrollX == 11) {
-                            ppu->scrollX = ppu->scrollX;
-                        }
+                        sendStatInterrupt = true;
                     }
                     if(ppu->line == 144) {
                         // Enter vBlank             
@@ -47,7 +45,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                     } else {
                         ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
                         if (ppu->isMode2InterruptEnabled) {
-                            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                            sendStatInterrupt = true;
                         }
                     }
                 } else {
@@ -66,11 +64,11 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                         ppu->lineMode = GB_PPU_MODE_OAM_SCAN;
                         ppu->line = 0;
                         if (ppu->isMode2InterruptEnabled) {
-                            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                            sendStatInterrupt = true;
                         }
                     }
                     if (ppu->lineCMP == ppu->line && ppu->isLYCInterruptEnabled) {
-                        GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
+                        sendStatInterrupt = true;
                     }
                 } else {
                     u_int32_t newClock = ppu->clock + CLOCK_INC;
@@ -90,6 +88,9 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                 GB_RenderProcessFrame(device, cycle);
                 u_int32_t newClock = ppu->clock + CLOCK_INC;
                 ppu->clock = newClock;
+        }
+        if (sendStatInterrupt) {
+            GB_interrupt_request(device, GB_INTERRUPT_FLAG_LCD_STAT);
         }
     }
 }
@@ -214,6 +215,7 @@ void GB_devicePPUIOWrite(GB_device* device, Word addr, Byte data) {
             break;
         case 0x4F:
             ppu->vramBankIndex = (data > 0)? 1 : 0;
+            break;
     }
 }
 
@@ -453,13 +455,19 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
 void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
     if (device->ppu->isWindowEnabled == false) {
         return;
+    } else if (xScan + 7 < device->ppu->windowX || line < device->ppu->windowY) {
+        return;
+    }
+
+    if (line == 0) {
+        line = line;
     }
 
     uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
-    Word scx = device->ppu->windowX - 7;
+    Word scx = device->ppu->windowX;
     Word scy = device->ppu->windowY;
 
-    u_int32_t pixelX = xScan + scx;
+    u_int32_t pixelX = (xScan  + 7) - scx;
     u_int32_t pixelY = line + scy;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;

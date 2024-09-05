@@ -261,7 +261,8 @@ Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
         case 0x00:
             return _GBJoypadByteRepresentation(mem);
         case 0x01:
-            return mem->sb;
+            return 0xff;
+            //return mem->sb;
         case 0x02:
             return  mem->sc;
         case 0x04:
@@ -302,11 +303,17 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
         case 0x00:
             mem->joypadDpadSelected = (value & 0x10) ? false : true;
             mem->joypadButtonSelected = (value & 0x20) ? false : true;
+            break;
         case 0x01:
             mem->sb = value;
             break;
         case 0x02:
             mem->sc = value;
+            mem->period = 0x1000;
+            if (value & 0x80) {
+                mem->nextEvent = 0x1000;
+                mem->remainingBits = 8;
+            }
             break;
         case 0x04:
             mem->div = 0;
@@ -341,7 +348,7 @@ void GB_deviceResetMMU(GB_device* device) {
     memset(mem->wRam, 0, 0x2000);
     memset(mem->zRam, 0, 0x80);
 
-    mem->sb = 0;
+    mem->sb = 0xFF;
     mem->sc = 0;
     mem->div = 0;
     mem->isTimaEnabled = false;
@@ -369,7 +376,7 @@ Byte _GBJoypadByteRepresentation(GB_mmu* mem) {
             (mem->joypadState.upPressed ? 0 : 0x4) |
             (mem->joypadState.downPressed ? 0 : 0x8);
     }
-    return 0x0F; // nothing selected return default value
+    return 0x0f; // nothing selected return default value
 }
 
 void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad) {
@@ -391,6 +398,29 @@ void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad) {
 
 void GB_interrupt_request(GB_device *device, unsigned char ir) {
     device->mmu->interruptRequest = (device->mmu->interruptRequest | ir) & 0x1f;
+}
+
+int32_t GBProcessMemEvents(GB_device* device, Byte cycles) {
+    if ((device->mmu->sc & 0x80) == 0) {
+        return 0;
+    }
+    if (device->mmu->nextEvent != -1) {
+ 		device->mmu->nextEvent -= cycles;
+ 	}
+
+ 	if (device->mmu->nextEvent <= 0) {
+ 		--device->mmu->remainingBits;
+ 		device->mmu->sb &= ~(8 >> device->mmu->remainingBits);
+ 		device->mmu->sb |= device->mmu->pendingSB & ~(8 >> device->mmu->remainingBits);
+ 		if (!device->mmu->remainingBits) {
+            GB_interrupt_request(device, GB_INTERRUPT_FLAG_SERIAL);
+ 			device->mmu->sc = device->mmu->sc & 0x80;
+ 			device->mmu->nextEvent = -1;
+ 		} else {
+ 			device->mmu->nextEvent += device->mmu->period;
+ 		}
+ 	}
+ 	return device->mmu->nextEvent;
 }
 
 //GBJoypadState GBJoypadStateDefault() { return (GBJoypadState) { false, false, false, false, false, false, false, false }; }

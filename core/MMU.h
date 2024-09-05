@@ -69,6 +69,13 @@ struct GB_mmu_s {
     bool joypadDpadSelected;
     bool joypadButtonSelected;
     GBJoypadState joypadState;
+
+    // WIP
+    int32_t nextEvent;
+ 	int32_t period;
+ 	int remainingBits;
+
+ 	uint8_t pendingSB;
 };
 
 Byte GB_deviceReadByte(GB_device*, Word);
@@ -79,3 +86,4 @@ int  GB_deviceloadRom(GB_device* device, const char* filePath);
 void GB_deviceResetMMU(GB_device* device);
 void GB_interrupt_request(GB_device* device, Byte ir);
 void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad);
+int32_t GBProcessMemEvents(GB_device* device, Byte cycles);
