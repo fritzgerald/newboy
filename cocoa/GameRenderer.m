@@ -1,4 +1,5 @@
 #import "GameRenderer.h"
+#include <Foundation/NSObjCRuntime.h>
 #include <stdbool.h>
 #include <CoreFoundation/CFCGTypes.h>
 #include <objc/objc.h>
@@ -19,7 +20,6 @@
     id <MTLDevice>              _device;
     id <MTLCommandQueue>        _commandQueue;
     id <MTLRenderPipelineState> _pipelineState;
-    id <MTLBuffer>              _vertices;
     id <MTLTexture>             _depthTarget;
 
     // Render pass descriptor which creates a render command encoder to draw to the drawable
@@ -40,7 +40,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/Dr. Mario.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
 
     _frameNum = 0;
 
@@ -51,7 +51,7 @@
     _drawableRenderDescriptor = [MTLRenderPassDescriptor new];
     _drawableRenderDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
     _drawableRenderDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
-    _drawableRenderDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 1, 1, 1);
+    _drawableRenderDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
 
     _textureLoader = [[MTKTextureLoader alloc] initWithDevice:device];
 
@@ -137,23 +137,6 @@
         NSLog(@" ERROR: Couldn't load fragment function from default library");
         return;
     }
-    // Set up a simple MTLBuffer with the vertices, including position and texture coordinates
-    static const GBVertex quadVertices[] = {
-        // Pixel positions, Color coordinates
-        { {  250,  -250 },  { 1.f, 1.f } },
-        { { -250,  -250 },  { 0.f, 1.f } },
-        { { -250,   250 },  { 0.f, 0.f } },
-
-        { {  250,  -250 },  { 1.f, 1.f } },
-        { { -250,   250 },  { 0.f, 0.f } },
-        { {  250,   250 },  { 1.f, 0.f } },
-    };
-
-    // Create a vertex buffer, and initialize it with the vertex data.
-    _vertices = [_device newBufferWithBytes:quadVertices
-                                     length:sizeof(quadVertices)
-                                    options:MTLResourceStorageModeShared];
-    _vertices.label = @"Quad";
 
     // Create a pipeline state descriptor to create a compiled pipeline state object
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
@@ -174,6 +157,27 @@
     }
 }
 
+-(id<MTLBuffer>) genVertexBuffer {
+    int32_t length = MIN(_viewportSize.x, _viewportSize.y);
+    const GBVertex quadVertices[] = {
+        // Pixel positions, Color coordinates
+        { {  length,  -length },  { 1.f, 1.f } },
+        { { -length,  -length },  { 0.f, 1.f } },
+        { { -length,   length },  { 0.f, 0.f } },
+
+        { {  length,  -length },  { 1.f, 1.f } },
+        { { -length,   length },  { 0.f, 0.f } },
+        { {  length,   length },  { 1.f, 0.f } },
+    };
+
+    // Create a vertex buffer, and initialize it with the vertex data.
+    id<MTLBuffer> vertices = [_device newBufferWithBytes:quadVertices
+                                     length:sizeof(quadVertices)
+                                    options:MTLResourceStorageModeShared];
+    vertices.label = @"Quad";
+    return vertices;
+}
+
 - (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
     CGImageRef frame = [self renderBackgroundFrame];
     // Create a new command buffer for each render pass to the current drawable.
@@ -187,13 +191,15 @@
         return;
     }
 
+    id<MTLBuffer> vertices = [self genVertexBuffer];
+
     _drawableRenderDescriptor.colorAttachments[0].texture = currentDrawable.texture;
     
     id <MTLRenderCommandEncoder> renderEncoder =
         [commandBuffer renderCommandEncoderWithDescriptor:_drawableRenderDescriptor];
 
     [renderEncoder setRenderPipelineState:_pipelineState];
-    [renderEncoder setVertexBuffer:_vertices offset:0 atIndex:GBVertexInputIndexVertices];
+    [renderEncoder setVertexBuffer:vertices offset:0 atIndex:GBVertexInputIndexVertices];
 
     GBUniforms uniforms;
     uniforms.scale = 1.0;

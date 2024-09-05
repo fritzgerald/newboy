@@ -35,7 +35,7 @@ vertexShader(uint vertexID [[ vertex_id ]],
 
     // Divide the pixel coordinates by half the size of the viewport to convert from positions in
     // pixel space to positions in clip space
-    out.clipSpacePosition.xy = pixelSpacePosition / (viewportSize / 2.0);
+    out.clipSpacePosition.xy = pixelSpacePosition / (viewportSize / 1.0);
     out.clipSpacePosition.z = 0.0;
     out.clipSpacePosition.w = 1.0;
 
@@ -47,7 +47,7 @@ vertexShader(uint vertexID [[ vertex_id ]],
 fragment float4
 fragmentShader(RasterizerData in [[stage_in]], texture2d<half> colorTexture [[ texture(GBTextureIndexOutput) ]])
 {
-    constexpr sampler textureSampler (mag_filter::linear, min_filter::linear);
+    constexpr sampler textureSampler (mag_filter::nearest, min_filter::nearest);
 
     // Sample the texture and return the color to colorSample
     const half4 colorSample = colorTexture.sample (textureSampler, in.textureCoordinate);
