@@ -261,8 +261,7 @@ Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
         case 0x00:
             return _GBJoypadByteRepresentation(mem);
         case 0x01:
-            return 0xff;
-            //return mem->sb;
+            return mem->sb;
         case 0x02:
             return  mem->sc;
         case 0x04:
@@ -312,7 +311,7 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
             mem->period = 0x1000;
             if (value & 0x80) {
                 mem->nextEvent = 0x1000;
-                mem->remainingBits = 8;
+                // mem->remainingBits = 8;
             }
             break;
         case 0x04:
@@ -359,7 +358,9 @@ void GB_deviceResetMMU(GB_device* device) {
     mem->interruptRequest = 0;
     mem->KEY1 = 0;
     mem->timaCounter = 0;
-    mem->joypadState = (GBJoypadState) { false, false, false, false, false, false, false, false };;
+    mem->joypadState = (GBJoypadState) { false, false, false, false, false, false, false, false };
+    mem->pendingSB = 0xFF;
+    mem->remainingBits = 8;
 }
 
 Byte _GBJoypadByteRepresentation(GB_mmu* mem) {
@@ -404,7 +405,7 @@ int32_t GBProcessMemEvents(GB_device* device, Byte cycles) {
     if ((device->mmu->sc & 0x80) == 0) {
         return 0;
     }
-    if (device->mmu->nextEvent != -1) {
+    if (device->mmu->nextEvent != 2147483647) {
  		device->mmu->nextEvent -= cycles;
  	}
 
@@ -415,7 +416,11 @@ int32_t GBProcessMemEvents(GB_device* device, Byte cycles) {
  		if (!device->mmu->remainingBits) {
             GB_interrupt_request(device, GB_INTERRUPT_FLAG_SERIAL);
  			device->mmu->sc = device->mmu->sc & 0x80;
- 			device->mmu->nextEvent = -1;
+ 			device->mmu->nextEvent = 2147483647;
+            if (device->mmu->pendingSB == 0xff) {
+                device->mmu->pendingSB = 0x01;
+                device->mmu->remainingBits = 8;
+            }
  		} else {
  			device->mmu->nextEvent += device->mmu->period;
  		}
