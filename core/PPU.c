@@ -15,10 +15,12 @@
 #define CLOCK_INC 2
 
 void GB_deviceResetPPU(GB_device* ppu);
-uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset);
+uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset, bool isWindow);
+uint16_t _GB_backgroundTileindexWithOffset(GB_device* device, Word offset);
 void GB_RenderProcessFrame(GB_device* device, Byte cycles);
 void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan);
 void GB_ClearFrame(GB_device* device);
+void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan);
 
 void GB_devicePPUstep(GB_device* device, Byte cycle) {
     GB_ppu *ppu = device->ppu;
@@ -441,7 +443,29 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;
 
-    uint16_t tileIndex = _GB_tileindexWithOffset(device, bgPixelOffset);
+    uint16_t tileIndex = _GB_backgroundTileindexWithOffset(device, bgPixelOffset);
+    uint32_t column = pixelX % 8;
+    uint32_t row  = pixelY % 8;
+    GB_tile_pixel_value value = device->ppu->tiles[tileIndex][row][column];
+    device->ppu->frameBuffer[GBBackgroundFrameBuffer][frameIndex] = value;
+}
+
+void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
+    if (device->ppu->isWindowEnabled == false) {
+        return;
+    }
+
+    uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
+    Word scx = device->ppu->windowX - 7;
+    Word scy = device->ppu->windowY;
+
+    u_int32_t pixelX = xScan + scx;
+    u_int32_t pixelY = line + scy;
+    Byte tilex = pixelX / 8;
+    Byte tiley = pixelY / 8;
+    uint32 bgPixelOffset = (tiley * 32) + tilex;
+
+    uint16_t tileIndex = _GB_tileindexWithOffset(device, bgPixelOffset, true);
     uint32_t column = pixelX % 8;
     uint32_t row  = pixelY % 8;
     GB_tile_pixel_value value = device->ppu->tiles[tileIndex][row][column];
@@ -514,15 +538,24 @@ void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
         for (int i = 0; i < fetchToPerform; i++) {
             int scanX = ppu->clock + i;
             GB_updateBackgroundPixel(device, ppu->line, scanX);
+            GB_updateWindowPixel(device, ppu->line, scanX);
             GB_updateObjectPixel(device, ppu->line, scanX);
             //printf("finished rendering scanX %d\n", scanX);
         }
     }
 }
 
-uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset) {
-    // Word startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
-    Word startAddr = 0x9800;
+uint16_t _GB_backgroundTileindexWithOffset(GB_device* device, Word offset) {
+    return _GB_tileindexWithOffset(device, offset, false);
+}
+
+uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset, bool isWindow) {
+    Word startAddr;
+    if(isWindow == false) {
+        startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
+    } else {
+        startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9C00 : 0x9800;
+    }
 
     if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
         uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
@@ -573,7 +606,7 @@ uint8_t* GB_ppu_gen_background_bitmap(GB_device* device) {
     // here we ignore ppu->isBGWinEnabled
     Word bgAddrLen = 0x400;
     for (uint16_t i = 0; i < bgAddrLen; i++) {
-        int16_t tileIndex = _GB_tileindexWithOffset(device, i);
+        int16_t tileIndex = _GB_tileindexWithOffset(device, i, false);
 
         int tileWidth = 8;
         int tileHeight = 8;
