@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <stdbool.h>
 #include <sys/_types/_u_int32_t.h>
@@ -92,9 +93,8 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
 }
 
 void GB_ClearFrame(GB_device* device) {
-    for (int i = 0; i < 160 * 144; i++) {
-        device->ppu->frameBuffer[GBObjectFrameBuffer][i] = 0;
-    }
+    memset(device->ppu->objPriorities, 0, 160 * 144);
+    memset(device->ppu->frameBuffer[GBObjectFrameBuffer], 0, sizeof(GBObjectFrameBuffer) * 160 * 144);
 }
 
 Byte GB_deviceVramRead(GB_device* device, Word addr) {
@@ -306,6 +306,8 @@ void GB_deviceResetPPU(GB_device* device) {
     memset(ppu->oam, 0, 0xA0);
     memset(ppu->tiles, 0, 384 * 8 * 8);
 
+   memset(ppu->objPriorities, 0, 160 * 144);
+
     unsigned short clock = 0;
     ppu->lineMode = GB_PPU_MODE_HBLANK;
     ppu->line  = 0;
@@ -455,6 +457,7 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
     }
 
     Byte objHeight = device->ppu->objSize == GB_tile_bit_value_0 ? 8 : 16;
+    
     for (int index = 0; index < 0xA0; index += 4) {
         Byte yPos = device->ppu->oam[index] - 16;
         Byte xPos = device->ppu->oam[index + 1] - 8;
@@ -484,13 +487,12 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
             row = 7 - row;
         }
         GB_tile_pixel_value color = device->ppu->tiles[tileIndex][row][column];
-        if (color == GB_Tile_pixel_0 && (attributes & 0x80) != 0) {
-            GB_tile_pixel_value backColor = device->ppu->frameBuffer[GBBackgroundFrameBuffer][frameIndex];
-            if (backColor != GB_Tile_pixel_0) {
-                color = backColor;
-            }
+
+        if (color != GB_Tile_pixel_0) {
+            device->ppu->objPriorities[frameIndex] = (attributes & 0x80) ? false : true;
+            device->ppu->frameBuffer[GBObjectFrameBuffer][frameIndex] = color;
+            break;
         }
-        device->ppu->frameBuffer[GBObjectFrameBuffer][frameIndex] = color;
     }
 }
 
@@ -543,9 +545,10 @@ uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
     for (uint16_t i = 0; i < width * height; i++) {
         GB_tile_pixel_value bgColorId = ppu->frameBuffer[GBBackgroundFrameBuffer][i];
         GB_tile_pixel_value objColorId = ppu->frameBuffer[GBObjectFrameBuffer][i];
+        bool objPriority = ppu->objPriorities[i];
 
         uint32_t color;
-        if (objColorId != GB_tile_bit_value_0) {
+        if (objColorId != GB_Tile_pixel_0 && (objPriority ||  bgColorId == GB_Tile_pixel_0)) {
             color = GB_ppu_getObjPaletteColor(device->ppu, objColorId);
         } else {
             color = GB_ppu_getBackgroundPaletteColor(device->ppu, bgColorId);

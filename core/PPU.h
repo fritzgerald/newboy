@@ -88,6 +88,7 @@ struct GB_ppu_s {
     Byte oam[0xA0];
     GB_tile_pixel_value tiles[384][8][8];
     GB_tile_pixel_value frameBuffer[2][160 * 144];
+    bool objPriorities[160 * 144];
 };
 
 void GB_deviceResetPPU(GB_device* device);
