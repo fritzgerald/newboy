@@ -1,4 +1,5 @@
 #import "GameRenderer.h"
+#include <math.h>
 #include <Foundation/NSObjCRuntime.h>
 #include <stdbool.h>
 #include <CoreFoundation/CFCGTypes.h>
@@ -159,16 +160,26 @@
 }
 
 -(id<MTLBuffer>) genVertexBuffer {
-    int32_t length = MIN(_viewportSize.x, _viewportSize.y);
+    float ratiox = 1;
+    float ratioy = 1;
+    float screenRatio = 160 / 144.0;
+    int32_t length = _viewportSize.y;
+    if(_viewportSize.x > _viewportSize.y * screenRatio) {
+        ratiox = screenRatio;
+    } else {
+        length = _viewportSize.x;
+        ratioy = 144.0 / 160.0;
+    }
+
     const GBVertex quadVertices[] = {
         // Pixel positions, Color coordinates
-        { {  length,  -length },  { 1.f, 1.f } },
-        { { -length,  -length },  { 0.f, 1.f } },
-        { { -length,   length },  { 0.f, 0.f } },
+        { {  length * ratiox,  -length * ratioy},  { 1.f, 1.f } },
+        { { -length * ratiox,  -length * ratioy},  { 0.f, 1.f } },
+        { { -length * ratiox,   length * ratioy},  { 0.f, 0.f } },
 
-        { {  length,  -length },  { 1.f, 1.f } },
-        { { -length,   length },  { 0.f, 0.f } },
-        { {  length,   length },  { 1.f, 0.f } },
+        { {  length * ratiox,  -length * ratioy},  { 1.f, 1.f } },
+        { { -length * ratiox,   length * ratioy},  { 0.f, 0.f } },
+        { {  length * ratiox,   length * ratioy},  { 1.f, 0.f } },
     };
 
     // Create a vertex buffer, and initialize it with the vertex data.
