@@ -1,4 +1,6 @@
 #import "GameRenderer.h"
+#include "cocoa/GBAudioClient.h"
+#include "core/APU.h"
 #include <math.h>
 #include <Foundation/NSObjCRuntime.h>
 #include <stdbool.h>
@@ -33,6 +35,7 @@
     NSUInteger _frameNum;
     id<MTLTexture> _texture;
     GB_device* _gameboydevice;
+    GBAudioClient *_audioClient;
 }
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device
@@ -41,7 +44,10 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/Alleyway.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/Dr. Mario.gb");
+    //GB_deviceloadRom(_gameboydevice, "testroms/cgb_sound/rom_singles/02-len ctr.gb");
+
+    _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
     _frameNum = 0;
 
@@ -72,6 +78,7 @@
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
         GB_devicePPUstep(_gameboydevice, cycles);
         GBProcessMemEvents(_gameboydevice, cycles);
+        GBApuStep(_gameboydevice, cycles);
     }
     // TODO: Render Frame
     // Frame done
@@ -101,6 +108,7 @@
         GBUpdateJoypadState(_gameboydevice, self.joypad);
         unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
         GB_devicePPUstep(_gameboydevice, cycles);
+        GBApuStep(_gameboydevice, cycles);
     }
     // TODO: Render Frame
     // Frame done

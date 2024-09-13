@@ -6,6 +6,7 @@ struct GB_device_s {
     GB_cpu* cpu;
     GB_mmu* mmu;
     GB_ppu* ppu;
+    GBApu*  apu;
 };
 
 GB_device* GB_newDevice();

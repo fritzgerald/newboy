@@ -41,7 +41,7 @@ CODESIGN := codesign -fs -
 CFLAGS += -g
 CFLAGS += -F/Library/Frameworks -mmacosx-version-min=14.0 -isysroot $(SYSROOT) -IAppleCommon -fobjc-arc -I./
 
-LDFLAGS += -Wl -framework AppKit -framework QuartzCore -framework Metal -framework UniformTypeIdentifiers -framework MetalKit -mmacosx-version-min=14.0 -isysroot $(SYSROOT)
+LDFLAGS += -Wl -framework AppKit -framework QuartzCore -framework Metal -framework UniformTypeIdentifiers -framework MetalKit -framework AudioToolbox -framework AVFoundation -mmacosx-version-min=14.0 -isysroot $(SYSROOT)
 
 cocoaApp: $(ODIR)/NewBoy.app
 $(ODIR)/NewBoy.app: $(ODIR)/NewBoy.app/Contents/MacOS/NewBoy \

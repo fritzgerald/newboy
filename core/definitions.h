@@ -27,3 +27,9 @@ typedef struct GB_cpu_s GB_cpu;
 
 struct GB_device_s;
 typedef struct GB_device_s GB_device;
+
+struct GBAPU_s;
+typedef struct GBAPU_s GBApu; 
+
+struct GBSample_s;
+typedef struct GBSample_s GBSample;

@@ -2,6 +2,7 @@
 #include "Device.h"
 #include "PPU.h"
 #include "MMU.h"
+#include "APU.h"
 #include "Bios.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -74,10 +75,9 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
                             case 0x00:
                                 return GB_mmu_read_FF00(mem, addr);
                             case 0x10: case 0x20: case 0x30:
-                                break;
+                                return GBReadAPURegister(device, addr);
                             case 0x40:
                                 return GB_devicePPUIORead(device, addr);
-                            
                         }
 			            return 0;
 			        }
@@ -152,9 +152,11 @@ void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
                                 GB_mmu_write_FF00(mem, addr, value);
                                 break;
                             case 0x10: case 0x20: case 0x30:
+                                GBWriteToAPURegister(device, addr, value);
                                 break;
                             case 0x40:
                                 GB_devicePPUIOWrite(device, addr, value);
+                                break;
                         }
                     }
                     break;

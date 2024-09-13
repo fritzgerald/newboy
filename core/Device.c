@@ -3,6 +3,7 @@
 #include "CPU.h"
 #include "PPU.h"
 #include "MMU.h"
+#include "APU.h"
 #include <stdlib.h>
 
 GB_device* GB_newDevice() {
@@ -29,9 +30,19 @@ GB_device* GB_newDevice() {
         free(mmu);
         return NULL;
     }
+
+    GBApu* apu = malloc(sizeof(GBApu));
+    if (apu == NULL) {
+        free(device);
+        free(cpu);
+        free(mmu);
+        free(ppu);
+        return NULL;
+    }
     device->cpu = cpu;
     device->mmu = mmu;
     device->ppu = ppu;
+    device->apu = apu;
 
     GB_reset(device);
 
