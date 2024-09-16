@@ -101,7 +101,7 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
     }
 
     self.sampleRate = rate;
-    device->apu->sampleRate = 96000;
+    device->apu->sampleRate = 48000;
     GBApuSetSampleReadyCallback(device, _GBOnSampleReadyBack, (__bridge void *)(self));
     //
     [self start];
@@ -121,8 +121,9 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
         memcpy(buffer, _audioBuffer, _audioBufferPosition * sizeof(*buffer));
         // Do not reset the audio position to avoid more underflows
     } else {
-        memcpy(buffer, _audioBuffer + (_audioBufferPosition - nFrames), nFrames * sizeof(*buffer));
-        _audioBufferPosition = 0;
+        memcpy(buffer, _audioBuffer, nFrames * sizeof(*buffer));
+        memmove(_audioBuffer, _audioBuffer + nFrames, (_audioBufferPosition - nFrames) * sizeof(*_audioBuffer));
+        _audioBufferPosition = _audioBufferPosition - nFrames;
     }
     
     [_lock unlock];
@@ -131,8 +132,10 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 -(void) onSampleBlockReady:(GB_device *)device  sample:(GBSample) sample {
     [_lock lock];
     if(_audioBufferPosition >= (96000)) {
-        [_lock unlock];
-        return; // buffer full
+        memmove(_audioBuffer, _audioBuffer + 48000, 48000 * sizeof(*_audioBuffer));
+        _audioBufferPosition = 48000;
+        // [_lock unlock];
+        // return; // buffer full
     }
     _audioBuffer[_audioBufferPosition++] = sample;
     [_lock unlock];

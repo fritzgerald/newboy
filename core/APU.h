@@ -75,7 +75,7 @@ struct GBAPU_s {
     void* sampleReadyCallbackSender;
     bool divBitUp;
     bool activeChannels[GBSoundChannelCount];
-    Byte channelValues[GBSoundChannelCount];
+    short channelValues[GBSoundChannelCount];
     Byte data[0x30];
 };
 
