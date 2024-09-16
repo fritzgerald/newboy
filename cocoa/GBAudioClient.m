@@ -132,8 +132,9 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 -(void) onSampleBlockReady:(GB_device *)device  sample:(GBSample) sample {
     [_lock lock];
     if(_audioBufferPosition >= (96000)) {
-        memmove(_audioBuffer, _audioBuffer + 48000, 48000 * sizeof(*_audioBuffer));
-        _audioBufferPosition = 48000;
+        //memmove(_audioBuffer, _audioBuffer + 48000, 48000 * sizeof(*_audioBuffer));
+        //_audioBufferPosition = 48000;
+        _audioBufferPosition = 0;
         // [_lock unlock];
         // return; // buffer full
     }

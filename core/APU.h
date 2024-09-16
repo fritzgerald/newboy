@@ -12,6 +12,7 @@
 #define NR13 0x03
 #define NR14 0x04
 
+#define NR20 0x5
 #define NR21 0x6
 #define NR22 0x7
 #define NR23 0x8
@@ -23,6 +24,7 @@
 #define NR33 0xD
 #define NR34 0xE
 
+#define NR40 0x0F
 #define NR41 0x10
 #define NR42 0x11
 #define NR43 0x12
@@ -76,6 +78,7 @@ struct GBAPU_s {
     bool divBitUp;
     bool activeChannels[GBSoundChannelCount];
     short channelValues[GBSoundChannelCount];
+    u_int32_t channelClock[GBSoundChannelCount];
     Byte data[0x30];
 };
 
