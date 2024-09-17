@@ -5,6 +5,7 @@
 #include "MMU.h"
 #include "APU.h"
 #include <stdlib.h>
+#include <string.h>
 
 GB_device* GB_newDevice() {
     GB_device* device = malloc(sizeof(GB_device));
@@ -43,6 +44,7 @@ GB_device* GB_newDevice() {
     device->mmu = mmu;
     device->ppu = ppu;
     device->apu = apu;
+    memset(apu, 0, sizeof(GBApu));
 
     GB_reset(device);
 

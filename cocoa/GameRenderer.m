@@ -44,10 +44,10 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
-    //GB_deviceloadRom(_gameboydevice, "testroms/cgb_sound/rom_singles/02-len ctr.gb");
+    //GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/cgb_sound/rom_singles/02-len ctr.gb");
 
-    _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
+    _audioClient = [[GBAudioClient alloc] initWithSampleRate:96000 andDevice:_gameboydevice];
 
     _frameNum = 0;
 

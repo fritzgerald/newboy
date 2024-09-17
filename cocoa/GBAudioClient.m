@@ -5,7 +5,9 @@
 #include <sys/_types/_u_int32_t.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import "core/APU.h"
-#import "core/Device.h" 
+#import "core/Device.h"
+
+#define GB_AUDIO_BUFFER_SIZE 0x4000
 
 OSStatus render(GBAudioClient *self,
                 AudioUnitRenderActionFlags *ioActionFlags,
@@ -27,9 +29,10 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 
 @implementation GBAudioClient {
     AudioComponentInstance audioUnit;
-    GBSample _audioBuffer[96000];
+    GBSample _audioBuffer[GB_AUDIO_BUFFER_SIZE];
     u_int32_t _audioBufferPosition;
     NSCondition* _lock;
+    UInt32 requestedFrames;
 }
 
 -(id)initWithSampleRate:(NSInteger)rate andDevice:(GB_device*) device {
@@ -101,7 +104,7 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
     }
 
     self.sampleRate = rate;
-    device->apu->sampleRate = 48000;
+    device->apu->sampleRate = rate;
     GBApuSetSampleReadyCallback(device, _GBOnSampleReadyBack, (__bridge void *)(self));
     //
     [self start];
@@ -112,7 +115,9 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 -(void) onRenderBlockRequest:(UInt32)sampleRate  nFrame:(UInt32) nFrames buffer: (GBSample *) buffer {
     [_lock lock];
     if (_audioBufferPosition < nFrames) {
-        [_lock waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.33]];
+        requestedFrames = nFrames;
+        [_lock waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:(double)(requestedFrames - _audioBufferPosition) / sampleRate]];
+        requestedFrames = 0;
     }
 
     if (_audioBufferPosition < nFrames) {
@@ -120,10 +125,15 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
         memset(buffer, 0, (nFrames - _audioBufferPosition) * sizeof(*buffer));
         memcpy(buffer, _audioBuffer, _audioBufferPosition * sizeof(*buffer));
         // Do not reset the audio position to avoid more underflows
-    } else {
+    } 
+    else if (_audioBufferPosition < nFrames + (sampleRate / 20)) {
         memcpy(buffer, _audioBuffer, nFrames * sizeof(*buffer));
-        memmove(_audioBuffer, _audioBuffer + nFrames, (_audioBufferPosition - nFrames) * sizeof(*_audioBuffer));
+        memmove(_audioBuffer, _audioBuffer + nFrames, (_audioBufferPosition - nFrames) * sizeof(*buffer));
         _audioBufferPosition = _audioBufferPosition - nFrames;
+    }
+    else {
+        memcpy(buffer, _audioBuffer + (_audioBufferPosition - nFrames), nFrames * sizeof(*buffer));
+        _audioBufferPosition = 0;
     }
     
     [_lock unlock];
@@ -131,14 +141,8 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 
 -(void) onSampleBlockReady:(GB_device *)device  sample:(GBSample) sample {
     [_lock lock];
-    if(_audioBufferPosition >= (96000)) {
-        //memmove(_audioBuffer, _audioBuffer + 48000, 48000 * sizeof(*_audioBuffer));
-        //_audioBufferPosition = 48000;
-        _audioBufferPosition = 0;
-        // [_lock unlock];
-        // return; // buffer full
-    }
-    _audioBuffer[_audioBufferPosition++] = sample;
+    _audioBuffer[_audioBufferPosition] = sample;
+    _audioBufferPosition = (_audioBufferPosition + 1) % GB_AUDIO_BUFFER_SIZE;
     [_lock unlock];
 }
 

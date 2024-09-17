@@ -76,9 +76,13 @@ struct GBAPU_s {
     GBApuSampleReady sampleReadyCallback;
     void* sampleReadyCallbackSender;
     bool divBitUp;
+    u_int16_t periodSweepTimer;
+    u_int16_t envelopeSweepTimer[GBSoundChannelCount];
+    Byte envelopeVolume[GBSoundChannelCount];
     bool activeChannels[GBSoundChannelCount];
     short channelValues[GBSoundChannelCount];
     u_int32_t channelClock[GBSoundChannelCount];
+    Byte channelLen[GBSoundChannelCount];
     Byte data[0x30];
 };
 
