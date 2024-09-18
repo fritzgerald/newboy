@@ -87,8 +87,9 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
 }
 
 Word GB_deviceReadWord(GB_device* device, Word addr) {
+    Byte lower = GB_deviceReadByte(device, addr);
     Word strongByte = GB_deviceReadByte(device, addr+1);
-    return  (strongByte << 8) + GB_deviceReadByte(device, addr);
+    return  (strongByte << 8) + lower;
 }
 
 void GB_device_OAM_DMA(GB_device* device, Byte data) {

@@ -42,7 +42,7 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
             _disableChannelIfOff(device, localAddr / 0x05);
         case NR11:case NR21:case NR41:
             device->apu->data[localAddr] = value;
-            apu->channelLen[localAddr / 0x05] = device->apu->data[localAddr] & 0x3F; 
+            apu->channelLen[localAddr / 0x05] = device->apu->data[localAddr] & 0x3F;
             break;
         case NR31:
             device->apu->data[localAddr] = value;
@@ -320,7 +320,8 @@ void _updateEvents(GB_device* device) {
         }
         if (apu->periodSweepTimer == 0) {
             apu->periodSweepTimer = pace;
-        } else {
+        } 
+        else {
             apu->periodSweepTimer--;
         }
         if (apu->periodSweepTimer == 0) {
@@ -328,7 +329,11 @@ void _updateEvents(GB_device* device) {
             u_int16_t period = _GBChannelPeriod(device, NR13);
             u_int16_t delta = period / pow(2, step);
             u_int16_t newP = (apu->data[NR10] & 0x8) == 0 ? period + delta : period - delta;
-            _GBWriteChannelPeriod(device, NR13, newP);
+            if (newP >= 0x7FF) {
+                apu->activeChannels[GBSoundCH1] = false;
+            } else {
+                _GBWriteChannelPeriod(device, NR13, newP);
+            }
         }
     }
 

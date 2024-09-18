@@ -63,3 +63,28 @@ void GB_reset(GB_device* device) {
     GB_deviceResetPPU(device);
     GB_deviceCpuReset(device);
 }
+
+void GB_updateDivCounter(GB_device* device, Byte ticks) {
+    GB_cpu* cpu = device->cpu;
+    GB_mmu* mmu = device->mmu;
+    // update DIV register
+    cpu->divCounter += ticks;
+    if(cpu->divCounter >= DIV_CLOCK_INC) { // TODO: Handle double speed
+        mmu->div++;
+    }
+    cpu->divCounter %= DIV_CLOCK_INC;
+}
+
+void GB_emulationAdvance(GB_device* device, Byte cycles) {
+    GB_cpu* cpu = device->cpu;
+    GB_mmu* mmu = device->mmu;
+
+    Byte ticks = cycles / 4;
+
+    GB_updateDivCounter(device, ticks);
+    GB_update_tima_counter(device, ticks);
+
+    GB_devicePPUstep(device, cycles);
+    GBProcessMemEvents(device, cycles);
+    GBApuStep(device, cycles);
+}

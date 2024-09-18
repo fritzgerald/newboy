@@ -3,6 +3,8 @@
 #include "definitions.h"
 #include <stdbool.h>
 
+#define DIV_CLOCK_INC             64
+
 typedef struct {
     /* 8-bit registers  */
     Byte  a, b, c, d, e, f, h, l;
@@ -24,3 +26,5 @@ struct GB_cpu_s {
 
 void GB_deviceCpuReset(GB_device* device);
 Byte GB_deviceCpuStep(GB_device* device);
+void GB_update_tima_status(GB_device* device);
+void GB_update_tima_counter(GB_device* device, int ticks);
