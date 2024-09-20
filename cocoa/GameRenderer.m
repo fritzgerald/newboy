@@ -45,9 +45,11 @@
 
     _gameboydevice = GB_newDevice();
     //GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
-    GB_deviceloadRom(_gameboydevice, "testroms/cgb_sound/rom_singles/02-len ctr.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/01-read_timing.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/02-write_timing.gb");
+    //GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/03-modify_timing.gb");
 
-    _audioClient = [[GBAudioClient alloc] initWithSampleRate:96000 andDevice:_gameboydevice];
+    _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
     _frameNum = 0;
 
@@ -75,10 +77,7 @@
     // if(_gameboydevice->cpu->is_halted == false)
     while (_gameboydevice->ppu->frameReady == false){
         GBUpdateJoypadState(_gameboydevice, self.joypad);
-        unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
-        GB_devicePPUstep(_gameboydevice, cycles);
-        GBProcessMemEvents(_gameboydevice, cycles);
-        GBApuStep(_gameboydevice, cycles);
+        GB_emulationStep(_gameboydevice);
     }
     // TODO: Render Frame
     // Frame done
@@ -100,35 +99,33 @@
     return [img CGImage];
 }
 
--(CGImageRef)renderBackground {
-    int strIdx = 0;
-    char console[100];
-    // if(_gameboydevice->cpu->is_halted == false)
-    while (_gameboydevice->ppu->frameReady == false){
-        GBUpdateJoypadState(_gameboydevice, self.joypad);
-        unsigned char cycles = GB_deviceCpuStep(_gameboydevice);
-        GB_devicePPUstep(_gameboydevice, cycles);
-        GBApuStep(_gameboydevice, cycles);
-    }
-    // TODO: Render Frame
-    // Frame done
-    _gameboydevice->ppu->frameReady = false;
-    uint8_t* data =  GB_ppu_gen_background_bitmap(_gameboydevice);
-    NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
-        initWithBitmapDataPlanes: &data 
-        pixelsWide:256 
-        pixelsHigh:256 
-        bitsPerSample:8 
-        samplesPerPixel: 4 
-        hasAlpha:YES isPlanar:NO
-        colorSpaceName:NSDeviceRGBColorSpace 
-        bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
-        bytesPerRow:256 * 4
-        bitsPerPixel:32];
+// -(CGImageRef)renderBackground {
+//     int strIdx = 0;
+//     char console[100];
+//     // if(_gameboydevice->cpu->is_halted == false)
+//     while (_gameboydevice->ppu->frameReady == false){
+//         GBUpdateJoypadState(_gameboydevice, self.joypad);
+//         GB_emulationStep(_gameboydevice);
+//     }
+//     // TODO: Render Frame
+//     // Frame done
+//     _gameboydevice->ppu->frameReady = false;
+//     uint8_t* data =  GB_ppu_gen_background_bitmap(_gameboydevice);
+//     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
+//         initWithBitmapDataPlanes: &data 
+//         pixelsWide:256 
+//         pixelsHigh:256 
+//         bitsPerSample:8 
+//         samplesPerPixel: 4 
+//         hasAlpha:YES isPlanar:NO
+//         colorSpaceName:NSDeviceRGBColorSpace 
+//         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
+//         bytesPerRow:256 * 4
+//         bitsPerPixel:32];
     
-    //free(data);
-    return [img CGImage];
-}
+//     //free(data);
+//     return [img CGImage];
+// }
 
 -(void) createRenderPipeline: (MTLPixelFormat)drawabklePixelFormat {
     id<MTLLibrary> shaderLib = [_device newDefaultLibrary];

@@ -363,6 +363,7 @@ void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value) {
 
 void GBApuStep(GB_device* device, Byte cycles) {
     Byte ticks = cycles / 4;
+
     if((device->apu->data[NR52] & 0x80) == 0) { // master audio disabled
         return;
     }
@@ -375,6 +376,7 @@ void GBApuStep(GB_device* device, Byte cycles) {
     }
     
     for (int i = 0; i < ticks; i++) {
+        device->apu->clock++;
         GBSample sample = {0};
 
         //_extractWaveSample(device, false);
@@ -400,7 +402,6 @@ void GBApuStep(GB_device* device, Byte cycles) {
             }
         }
 
-        device->apu->clock++;
         if(device->apu->clock % sampleScale == 0) {
             apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, sample);
         }

@@ -19,7 +19,6 @@ struct GB_cpu_s {
 
     // Interrupt master enable flag
     bool IME;
-    Byte prevCycles;
     unsigned int divCounter;
     Byte enableINT, disableINT;
 };

@@ -321,13 +321,16 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
             mem->div = 0;
             break;
         case 0x05:
-            if (mem->timaStatus != GBTimaReloaded) {
+            if(mem->timaStatus == GBTimaReloading) {
+                mem->tima = value;
+                mem->timaStatus = GBTimaRunning;
+            } else if (mem->timaStatus == GBTimaRunning) {
                 mem->tima = value;
             }
             break;
         case 0x06:
             mem->tma = value;
-            if (mem->timaStatus != GBTimaRunning) {
+            if (mem->timaStatus == GBTimaReloaded) {
                 mem->tima = value;
             }
             break;
