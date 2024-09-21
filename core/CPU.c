@@ -1513,7 +1513,12 @@ Byte ins_set_d_0(GB_device* device) { device->cpu->registers.d = device->cpu->re
 Byte ins_set_e_0(GB_device* device) { device->cpu->registers.e = device->cpu->registers.e | 0x01; PC_INC(self, 2); return 8; }
 Byte ins_set_h_0(GB_device* device) { device->cpu->registers.h = device->cpu->registers.h | 0x01; PC_INC(self, 2); return 8; }
 Byte ins_set_l_0(GB_device* device) { device->cpu->registers.l = device->cpu->registers.l | 0x01; PC_INC(self, 2); return 8; }
-Byte ins_set_hl_0(GB_device* device) { GB_cpu_write_byte(device,GB_register_get_HL(device), GB_cpu_read_byte(device, GB_register_get_HL(device)) | 0x01); PC_INC(self, 2); return 16; }
+Byte ins_set_hl_0(GB_device* device) {
+    Word hlAddr = GB_register_get_HL(device);
+    GB_cpu_write_byte(device, hlAddr, GB_cpu_read_byte(device, hlAddr) | 0x01); 
+    PC_INC(self, 2); 
+    return 16; 
+}
 
 Byte ins_set_a_1(GB_device* device) { device->cpu->registers.a = device->cpu->registers.a | 0x02; PC_INC(self, 2); return 8; }
 Byte ins_set_b_1(GB_device* device) { device->cpu->registers.b = device->cpu->registers.b | 0x02; PC_INC(self, 2); return 8; }
