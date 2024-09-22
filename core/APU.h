@@ -90,3 +90,4 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value);
 Byte GBReadAPURegister(GB_device* device, Word addr);
 void GBApuStep(GB_device* device, Byte cycles);
 void GBApuSetSampleReadyCallback(GB_device* device, GBApuSampleReady callback, void* sender);
+void GBApuDiv(GB_device* device);

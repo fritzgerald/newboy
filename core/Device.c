@@ -79,6 +79,8 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
     u_int16_t timaMask[] = {0x100, 0x04, 0x10, 0x40};
     u_int16_t bitTracked = timaMask[mmu->timaClockCycles];
     u_int16_t ticks = cycles / 4;
+
+    Byte prevDiv = mmu->div;
     for (int i = 0; i < ticks; i++) {
 
         // update DIV register
@@ -93,6 +95,12 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
                 mmu->timaStatus = GBTimaReloading;
             }
         }
+
+        Byte trackedBit = 0x10; // TODO: double speed mode 0x20?
+        if ((prevDiv & trackedBit) && (device->mmu->div & trackedBit) == 0) {
+            GBApuDiv(device);
+        }
+        prevDiv = device->mmu->div;
     }
 }
 

@@ -298,11 +298,12 @@ void _gb_update_envelop_pace(GB_device* device, GBSoundChannel channel, int regS
 
 void _updateEvents(GB_device* device) {
     GBApu* apu = device->apu;
-    if (apu->divBitUp == true || (device->mmu->div & 0x10) == 0) {
-        apu->divBitUp = (device->mmu->div & 0x10) ? true : false;
-        return;
-    }
-    apu->divBitUp = true;
+
+    // if (apu->divBitUp == true || (device->mmu->div & 0x10) == 0) {
+    //     apu->divBitUp = (device->mmu->div & 0x10) ? true : false;
+    //     return;
+    // }
+    // apu->divBitUp = true;
     // DIV-APU event
     apu->divApu++;
 
@@ -350,6 +351,10 @@ void _updateEvents(GB_device* device) {
     }
 }
 
+void GBApuDiv(GB_device* device) {
+    _updateEvents(device);
+}
+
 u_int16_t _GBChannelPeriod(GB_device* device, int NRx3) {
     u_int16_t period =  (device->apu->data[NRx3 + 1] & 0x07) << 8 | device->apu->data[NRx3];
     period = 2048 - period;
@@ -385,7 +390,7 @@ void GBApuStep(GB_device* device, Byte cycles) {
         _genChannelSquareWave(device, GBSoundCH2, NR20);
 
         // _genSquareWaveSample(device, 441);
-        _updateEvents(device);
+        //_updateEvents(device);
 
         for (int ch = 0; ch < GBSoundChannelCount; ch++) {
             if (false == apu->activeChannels[ch]) {
