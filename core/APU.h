@@ -69,6 +69,9 @@ typedef enum {
 struct GBAPU_s {
     u_int32_t clock;
     u_int32_t sampleRate;
+    u_int16_t periodDelta;
+    bool ch1SweepEnabled;
+    bool ch1SweepStop;
     Byte divApu;
     Byte waveReaderCursor;
     bool waveUpperRead;
@@ -76,7 +79,7 @@ struct GBAPU_s {
     GBApuSampleReady sampleReadyCallback;
     void* sampleReadyCallbackSender;
     bool divBitUp;
-    u_int16_t periodSweepTimer;
+    u_int8_t periodSweepTimer;
     u_int16_t envelopeSweepTimer[GBSoundChannelCount];
     Byte envelopeVolume[GBSoundChannelCount];
     bool activeChannels[GBSoundChannelCount];

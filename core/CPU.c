@@ -1714,6 +1714,9 @@ Byte GB_deviceCpuStep(GB_device* device) {
     }
 
     // printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
+    if (cpu->registers.pc == 0xc44d) {
+        cpu->registers.pc = cpu->registers.pc;
+    }
     
     Byte cycles = (*insToExec)(device);
 
