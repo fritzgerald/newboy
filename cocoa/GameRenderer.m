@@ -45,9 +45,23 @@
 
     _gameboydevice = GB_newDevice();
     //GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
-    GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/01-read_timing.gb");
-    GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/02-write_timing.gb");
-    //GB_deviceloadRom(_gameboydevice, "testroms/mem_timing-2/rom_singles/03-modify_timing.gb");
+    char* testRoms[] = { 
+        "testroms/cgb_sound/cgb_sound.gb",
+        "testroms/cgb_sound/rom_singles/01-registers.gb", 
+        "testroms/cgb_sound/rom_singles/02-len ctr.gb",
+        "testroms/cgb_sound/rom_singles/03-trigger.gb",
+        "testroms/cgb_sound/rom_singles/04-sweep.gb",
+        "testroms/cgb_sound/rom_singles/05-sweep details.gb",
+        "testroms/cgb_sound/rom_singles/06-overflow on trigger.gb",
+        "testroms/cgb_sound/rom_singles/07-len sweep period sync.gb",
+        "testroms/cgb_sound/rom_singles/08-len ctr during power.gb",
+        "testroms/cgb_sound/rom_singles/09-wave read while on.gb",
+        "testroms/cgb_sound/rom_singles/10-wave trigger while on.gb",
+        "testroms/cgb_sound/rom_singles/11-regs after power.gb",
+        "testroms/cgb_sound/rom_singles/12-wave.gb",
+        "testroms/test.gb"
+    };
+    GB_deviceloadRom(_gameboydevice, testRoms[4]);
 
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 

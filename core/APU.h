@@ -70,8 +70,10 @@ struct GBAPU_s {
     u_int32_t clock;
     u_int32_t sampleRate;
     u_int16_t periodDelta;
+    u_int16_t periodOnTrigger;
     bool ch1SweepEnabled;
     bool ch1SweepStop;
+    bool ch1NegModeUsed;
     Byte divApu;
     Byte waveReaderCursor;
     bool waveUpperRead;
