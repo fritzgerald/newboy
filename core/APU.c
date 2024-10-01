@@ -27,6 +27,7 @@ void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue,
 void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue);
 void _triggerCh1Sweep(GB_device* device);
 void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue);
+void GBApuReset(GB_device* device);
 
 void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
     GBApu* apu = device->apu;
@@ -65,11 +66,7 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         case NR52:
             device->apu->data[NR52] = value & 0x80;
             if (device->apu->data[NR52] == 0) {
-                apu->activeChannels[GBSoundCH1] = false;
-                apu->activeChannels[GBSoundCH2] = false;
-                apu->activeChannels[GBSoundCH3] = false;
-                apu->activeChannels[GBSoundCH4] = false;
-                memset(apu->data, 0, 0x20);
+                GBApuReset(device);
             }
             break;
         case NR12: case NR22: case NR42:
@@ -150,7 +147,7 @@ void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue,
 }
 
 void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue) {
-    if (newValue == 0x85) {
+    if (newValue == 0xC0) {
         newValue = newValue;
     }
     Byte step = device->apu->data[NR10] & 0x7;
@@ -362,8 +359,13 @@ void _gb_update_envelop_pace(GB_device* device, GBSoundChannel channel, int regS
     }
 }
 
+static int callCount = 0;
 void GBApuDiv(GB_device* device) {
     GBApu* apu = device->apu;
+    if ((apu->data[NR52] & 0x80) == 0) {
+        return; // APU off
+    }
+    
 
     apu->divApu++;
 
@@ -372,6 +374,7 @@ void GBApuDiv(GB_device* device) {
         _GB_updateLengthTimer(device, GBSoundCH2, NR20, 0x40);
         _GB_updateLengthTimer(device, GBSoundCH3, NR30, 0x100);
         _GB_updateLengthTimer(device, GBSoundCH4, NR40, 0x40);
+        callCount++;
     }
 
     if ((apu->divApu & 0x3) == 0x3) { //CH1 sweep
@@ -529,4 +532,27 @@ void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue)
         device->apu->activeChannels[GBSoundCH1] = false;
     }
     device->apu->ch1NegModeUsed = false;
+}
+
+void GBApuReset(GB_device* device) {
+    GBApu* apu = device->apu;
+    apu->clock = 0;
+    apu->sampleRate = 0;
+    apu->periodDelta = 0;
+    apu->periodOnTrigger = 0;
+    apu->ch1SweepEnabled = false;
+    apu->ch1SweepStop = false;
+    apu->ch1NegModeUsed = false;
+    apu->divApu = 0;
+    apu->waveReaderCursor = 0;
+    apu->waveUpperRead = false;
+
+    apu->periodSweepTimer = 0;
+    memset(apu->envelopeSweepTimer, 0, GBSoundChannelCount);
+    memset(apu->envelopeVolume, 0, GBSoundChannelCount);
+    memset(apu->activeChannels, false, GBSoundChannelCount);
+    memset(apu->channelValues, 0, GBSoundChannelCount);
+    memset(apu->channelClock, 0, GBSoundChannelCount);
+    memset(apu->channelLen, 0, GBSoundChannelCount);
+    memset(apu->data, 0, 0x20);
 }

@@ -61,7 +61,7 @@
         "testroms/cgb_sound/rom_singles/12-wave.gb",
         "testroms/test.gb"
     };
-    GB_deviceloadRom(_gameboydevice, testRoms[4]);
+    GB_deviceloadRom(_gameboydevice, testRoms[7]);
 
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 

@@ -81,11 +81,14 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
     u_int16_t ticks = cycles / 4;
 
     Byte prevDiv = mmu->div;
+    
     for (int i = 0; i < ticks; i++) {
 
         // update DIV register
         u_int32_t newDiv = cpu->divCounter + 1;
-        u_int32_t changedBits = cpu->divCounter ^ newDiv;
+        u_int32_t changedBits = cpu->divCounter  ^ newDiv;
+        u_int32_t triggers = cpu->divCounter & ~newDiv;
+
         cpu->divCounter = newDiv;
         mmu->div = (cpu->divCounter >> 6);
 
@@ -97,7 +100,10 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
         }
 
         Byte trackedBit = 0x10; // TODO: double speed mode 0x20?
-        if ((prevDiv & trackedBit) && (device->mmu->div & trackedBit) == 0) {
+        // if ((prevDiv & trackedBit) != trackedBit && (device->mmu->div & trackedBit) == trackedBit ) {
+        //     GBApuDiv(device);
+        // }
+        if (triggers & 0x400) {
             GBApuDiv(device);
         }
         prevDiv = device->mmu->div;
@@ -109,11 +115,6 @@ void GB_emulationStep(GB_device* device) {
 }
 
 void GB_emulationAdvance(GB_device* device, Byte cycles) {
-    GB_cpu* cpu = device->cpu;
-    GB_mmu* mmu = device->mmu;
-
-    Byte ticks = cycles / 4;
-
     GB_update_tima_status(device);
     GB_updateDivCounter(device, cycles);
     GBProcessMemEvents(device, cycles);
