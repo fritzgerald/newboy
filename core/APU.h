@@ -34,6 +34,8 @@
 #define NR51 0x15
 #define NR52 0x16
 
+#define LFSR_START 0x2604
+
 typedef enum {
     GBSoundPaddingNone,
     GBSoundPaddingRight,
@@ -71,6 +73,7 @@ struct GBAPU_s {
     u_int32_t sampleRate;
     u_int16_t periodDelta;
     u_int16_t periodOnTrigger;
+    u_int16_t lfsrState;
     bool ch1SweepEnabled;
     bool ch1SweepStop;
     bool ch1NegModeUsed;
@@ -88,6 +91,7 @@ struct GBAPU_s {
     short channelValues[GBSoundChannelCount];
     u_int32_t channelClock[GBSoundChannelCount];
     Byte channelLen[GBSoundChannelCount];
+    Byte channelSweepPace[GBSoundChannelCount];
     Byte data[0x30];
 };
 
