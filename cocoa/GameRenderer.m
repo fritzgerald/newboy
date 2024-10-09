@@ -1,4 +1,5 @@
 #import "GameRenderer.h"
+#include <Security/cssmconfig.h>
 #include "cocoa/GBAudioClient.h"
 #include "core/APU.h"
 #include <math.h>
@@ -44,7 +45,7 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    //GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
     char* testRoms[] = { 
         "testroms/cgb_sound/cgb_sound.gb",
         "testroms/cgb_sound/rom_singles/01-registers.gb", 
@@ -61,7 +62,7 @@
         "testroms/cgb_sound/rom_singles/12-wave.gb",
         "testroms/test.gb"
     };
-    //GB_deviceloadRom(_gameboydevice, testRoms[9]);
+    GB_deviceloadRom(_gameboydevice, testRoms[13]);
 
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
@@ -84,6 +85,7 @@
 
     return self;
 }
+
 
 -(CGImageRef)renderBackgroundFrame {
     int strIdx = 0;

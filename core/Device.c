@@ -100,11 +100,11 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
         }
 
         Byte trackedBit = 0x10; // TODO: double speed mode 0x20?
-        // if ((prevDiv & trackedBit) != trackedBit && (device->mmu->div & trackedBit) == trackedBit ) {
-        //     GBApuDiv(device);
+        // if ((cpu->divCounter & 0xFFF) == 0x800 || (cpu->divCounter & 0xFFFF) == 0x1000 ) {
+        //    GBApuDiv(device);
         // }
         if (triggers & 0x400) {
-            GBApuDiv(device);
+             GBApuDiv(device);
         }
         prevDiv = device->mmu->div;
     }

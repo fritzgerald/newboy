@@ -74,13 +74,15 @@ struct GBAPU_s {
     u_int16_t periodDelta;
     u_int16_t periodOnTrigger;
     u_int16_t lfsrState;
+    u_int32_t waveReadclock;
     bool ch1SweepEnabled;
     bool ch1SweepStop;
     bool ch1NegModeUsed;
     Byte divApu;
     Byte waveReaderCursor;
-    bool waveUpperRead;
-    GBSample output;
+    Byte waveValue;
+    GBSample lastSample;
+    GBSample lastSampleOutput;
     GBApuSampleReady sampleReadyCallback;
     void* sampleReadyCallbackSender;
     bool divBitUp;
@@ -92,6 +94,7 @@ struct GBAPU_s {
     u_int32_t channelClock[GBSoundChannelCount];
     Byte channelLen[GBSoundChannelCount];
     Byte channelSweepPace[GBSoundChannelCount];
+    u_int32_t channelClockDelay[GBSoundChannelCount];
     Byte data[0x30];
 };
 

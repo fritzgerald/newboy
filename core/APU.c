@@ -4,6 +4,7 @@
 #include "Device.h"
 #include "core/definitions.h"
 #include <cups/cups.h>
+#include <sys/_types/_u_int16_t.h>
 #include <sys/_types/_u_int32_t.h>
 #include <tgmath.h>
 #include <stdbool.h>
@@ -12,7 +13,8 @@
 #include <string.h>
 #include <stdint.h>
 
-#define APU_HZ 1048576
+//#define APU_HZ 1048576
+#define APU_HZ 2097152
 
 bool _GBIsDacOn(GB_device* device, GBSoundChannel channel);
 bool _GBIsMasterAudioOn(GB_device* device, GBSoundChannel channel);
@@ -23,14 +25,16 @@ void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value);
 void _disableChannelIfOff(GB_device* device, GBSoundChannel channel);
 void _GB_updateLengthTimer(GB_device* device, GBSoundChannel channel, int regStart, Word max);
 void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue, int regStart, Word lengMax);
-void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue);
 void _triggerCh1Sweep(GB_device* device);
 void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue);
+void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue);
+void _ch1SweepUpdate(GB_device* device);
 void GBApuReset(GB_device* device);
 void _GB_update_LFSR(GB_device* device);
 void _GB_gen_noise_wave(GB_device* device);
 void _triggerCh4(GB_device* device, Byte value);
-bool _GBIsCh3Triggered(GB_device* device);
+bool _GBIsCh3Clocked(GB_device* device);
+void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue);
 
 void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
     GBApu* apu = device->apu;
@@ -89,8 +93,13 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         case NR24:
             _enableChannelIfPossible(device, GBSoundCH2, value, NR20, 0x40);
             break;
+        case NR33:
+            device->apu->data[localAddr] = value;
+            break;
         case NR34:
+            oldValue = device->apu->data[localAddr];
             _enableChannelIfPossible(device, GBSoundCH3, value, NR30, 0x100);
+            _GBCh3Trigger(device, value, oldValue);
             break;
         case NR44:
             _enableChannelIfPossible(device, GBSoundCH4, value, NR40, 0x40);
@@ -110,8 +119,8 @@ Byte GBReadAPURegister(GB_device* device, Word addr) {
     }
     if (localAddr >= 0x20) {
         // wave read
-        if (apu->activeChannels[GBSoundCH3] == false || _GBIsCh3Triggered(device)) {
-            return apu->data[0x20 + apu->waveReaderCursor / 2];
+        if (apu->activeChannels[GBSoundCH3] == false || apu->waveReadclock == device->cpu->divCounter) {
+            return apu->waveValue;
         }
         return 0xFF;
     }
@@ -183,6 +192,17 @@ void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, 
     }
 }
 
+void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue)  {
+    if (value & 0x80) { // triggered
+        device->apu->waveReaderCursor = 0;
+        
+        // TODO: refactor
+        u_int16_t period = _GBChannelPeriod(device, NR33);
+        u_int32_t periodValue = 2048 - period; 
+        device->apu->channelClockDelay[GBSoundCH3] = periodValue + 2;
+    }
+}
+
 void _enableChannelIfPossible(GB_device* device, GBSoundChannel channel, Byte value, int regStart, Word lengMax) {
     Byte oldValue = device->apu->data[regStart + 4];
     device->apu->data[regStart + 4] = value;
@@ -236,14 +256,13 @@ int _GBSquareChannelUpPosition(int duty) {
     }
 }
 
-bool _GBIsCh3Triggered(GB_device* device) {
-    u_int16_t period = _GBChannelPeriod(device, NR33);
+bool _GBIsCh3Clocked(GB_device* device) {
+    // u_int16_t period = _GBChannelPeriod(device, NR33);
+    // u_int16_t periodValue = 2048 - period; 
 
-    u_int32_t freq = 2097152 / (2048 - period);
-    u_int32_t sampleLength = APU_HZ / freq;
-
-    u_int32_t clockLeft = (device->apu->channelClock[GBSoundCH3] % sampleLength);
-    return clockLeft == 0 ? true : false;
+    // u_int32_t clockLeft = (device->apu->channelClock[GBSoundCH3] % periodValue);
+    // return clockLeft == 0 ? true : false;
+    return device->apu->channelClockDelay[GBSoundCH3] == 0;
 }
 
 void _extractWaveSample(GB_device* device, bool force) {
@@ -254,36 +273,34 @@ void _extractWaveSample(GB_device* device, bool force) {
 
     Byte sound = (apu->data[NR32] & 0x60) >> 5;
     sound = sound & 0x3;
-
-    if(sound == 0) {
-        if (_GBIsCh3Triggered(device)) {
-            apu->waveReaderCursor = (apu->waveReaderCursor + 1) % 20;
-        }
-        apu->channelValues[GBSoundCH3] = 0; // mute
-        return;
-    }
-
-    u_int16_t period = _GBChannelPeriod(device, NR33);
-    u_int32_t sampleRate = 2048 - period;
-    u_int32_t sampletime = sampleRate / 2;
-
-    u_int32_t freq = 2097152 / sampleRate;
-    u_int32_t sampleLength = APU_HZ /(double)freq;
  
-    if ((apu->channelClock[GBSoundCH3] % sampleLength) == 0) {
+    if (device->apu->channelClockDelay[GBSoundCH3] == 0) {
+        apu->waveReaderCursor = (apu->waveReaderCursor + 1) % 32;
         int index = apu->waveReaderCursor / 2;
         Byte sampleValue = apu->data[0x20 + index];
+        apu->waveValue = sampleValue;
+
         if ((apu->waveReaderCursor & 1) == 1) {
             sampleValue = sampleValue & 0x0F;
         } else {
             sampleValue = sampleValue >> 4;
         }
+        
         if(sound > 1) {
             sampleValue = sampleValue >> (sound - 1);
+        } else if(sound == 0) {
+            sampleValue = 0;
         }
 
         apu->channelValues[GBSoundCH3] = sampleValue;
-        apu->waveReaderCursor = (apu->waveReaderCursor + 1) % 20;
+        apu->waveReadclock = device->cpu->divCounter;
+        // TODO: refactor
+        u_int16_t period = _GBChannelPeriod(device, NR33);
+        u_int32_t periodValue = 2048 - period; 
+        apu->channelClockDelay[GBSoundCH3] = periodValue - 1;
+    } else {
+        device->apu->channelClockDelay[GBSoundCH3]--;
+        apu->waveReadclock = 0;
     }
 }
 
@@ -430,7 +447,6 @@ void GBApuDiv(GB_device* device) {
     if ((apu->data[NR52] & 0x80) == 0) {
         return; // APU off
     }
-    
 
     apu->divApu++;
 
@@ -439,6 +455,10 @@ void GBApuDiv(GB_device* device) {
         _GB_updateLengthTimer(device, GBSoundCH2, NR20, 0x40);
         _GB_updateLengthTimer(device, GBSoundCH3, NR30, 0x100);
         _GB_updateLengthTimer(device, GBSoundCH4, NR40, 0x40);
+    }
+
+    if ((apu->divApu & 0x3) == 0x3) { //CH1 sweep
+        _ch1SweepUpdate(device);
     }
 
     if ((apu->divApu & 0x7) == 0x7) { //CH1 sweep
@@ -452,40 +472,16 @@ void GBApuDiv(GB_device* device) {
             apu->activeChannels[ch] = false;
         }
     }
+}
 
-    if ((apu->divApu & 0x3) == 0x3) { //CH1 sweep
-        Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
-        Byte step = apu->data[NR10] & 0x7;
-        apu->ch1NegModeUsed = false;
+void _ch1SweepUpdate(GB_device* device) {
+    GBApu* apu = device->apu;
+    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
+    Byte step = apu->data[NR10] & 0x7;
+    apu->ch1NegModeUsed = false;
 
-        if (false == apu->ch1SweepEnabled || pace == 0) {
-            apu->periodSweepTimer--;
-            if (apu->periodSweepTimer == 0) {
-                if (pace > 0) {
-                    apu->periodSweepTimer = pace;
-                } else {
-                    apu->periodSweepTimer = 8;
-                }
-            }
-            apu->ch1SweepStop = false;
-            return;
-        }
-
-        if (step == 0) {
-            if (apu->ch1SweepStop == true) {
-                //device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
-                return;
-            }
-
-            _triggerCh1Sweep(device);
-            apu->ch1SweepStop = true;
-            return;
-        }
-        apu->ch1SweepStop = false;
+    if (false == apu->ch1SweepEnabled || pace == 0) {
         apu->periodSweepTimer--;
-        if (apu->periodSweepTimer == 0) {
-            _triggerCh1Sweep(device);
-        }
         if (apu->periodSweepTimer == 0) {
             if (pace > 0) {
                 apu->periodSweepTimer = pace;
@@ -493,8 +489,31 @@ void GBApuDiv(GB_device* device) {
                 apu->periodSweepTimer = 8;
             }
         }
-        
-        //apu->periodSweepTimer++;
+        apu->ch1SweepStop = false;
+        return;
+    }
+
+    if (step == 0) {
+        if (apu->ch1SweepStop == true) {
+            //device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
+            return;
+        }
+
+        _triggerCh1Sweep(device);
+        apu->ch1SweepStop = true;
+        return;
+    }
+    apu->ch1SweepStop = false;
+    apu->periodSweepTimer--;
+    if (apu->periodSweepTimer == 0) {
+        _triggerCh1Sweep(device);
+    }
+    if (apu->periodSweepTimer == 0) {
+        if (pace > 0) {
+            apu->periodSweepTimer = pace;
+        } else {
+            apu->periodSweepTimer = 8;
+        }
     }
 }
 
@@ -541,18 +560,31 @@ void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value) {
     device->apu->data[NRx3 + 1] = (device->apu->data[NRx3 + 1] & 0x40) | ((value >> 8) & 0x07);
 }
 
+GBSample highPass(GB_device *device, GBSample sample) {
+    GBApu *apu = device->apu;
+    double cutoff_frequency = 1.0;
+    double gain = 0.5;//cutoff_frequency / (2 * M_PI * device->apu->sampleRate);
+
+    GBSample output = { 
+        (sample.left) + gain * (apu->lastSampleOutput.left - sample.left),
+        (sample.right) + gain * (apu->lastSampleOutput.right - sample.right) 
+    };
+    apu->lastSample = sample;
+    apu->lastSampleOutput = output;
+    return output;
+}
+
 void GBApuStep(GB_device* device, Byte cycles) {
-    Byte ticks = cycles / 4;
+    Byte ticks = cycles / 2;
 
     if((device->apu->data[NR52] & 0x80) == 0) { // master audio disabled
         return;
     }
 
-    u_int32_t apuBaseFrequency = 1048576;
-    u_int32_t sampleScale = 1;
+    u_int32_t cyclesPerSample = 1;
     GBApu* apu = device->apu;
     if(device->apu->sampleRate != 0) {
-        sampleScale = apuBaseFrequency / device->apu->sampleRate;
+        cyclesPerSample = APU_HZ / device->apu->sampleRate;
     }
     
     for (int i = 0; i < ticks; i++) {
@@ -563,9 +595,6 @@ void GBApuStep(GB_device* device, Byte cycles) {
         _genChannelSquareWave(device, GBSoundCH2, NR20);
         _extractWaveSample(device, false);
         _GB_gen_noise_wave(device);
-
-        // _genSquareWaveSample(device, 441);
-        //_updateEvents(device);
 
         for (int ch = 0; ch < GBSoundChannelCount; ch++) {
             //int nrStart = NR10 + (ch * 5);
@@ -587,8 +616,9 @@ void GBApuStep(GB_device* device, Byte cycles) {
         sample.left *= 0x100;
         sample.right *= 0x100;
 
-        if(device->apu->clock % sampleScale == 0) {
-            apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, sample);
+        if(device->apu->clock % cyclesPerSample == 0) {
+            GBSample out = highPass(device, sample);
+            apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, out);
         }
     }
 }
@@ -620,7 +650,6 @@ void GBApuReset(GB_device* device) {
     apu->ch1NegModeUsed = false;
     apu->divApu = 0;
     apu->waveReaderCursor = 0;
-    apu->waveUpperRead = false;
 
     apu->periodSweepTimer = 0;
     memset(apu->envelopeSweepTimer, 0, GBSoundChannelCount);
