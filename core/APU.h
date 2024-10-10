@@ -34,6 +34,8 @@
 #define NR51 0x15
 #define NR52 0x16
 
+#define APU_WAVE_START 0x20
+
 #define LFSR_START 0x2604
 
 typedef enum {

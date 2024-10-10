@@ -4,6 +4,7 @@
 #include "Device.h"
 #include "core/definitions.h"
 #include <cups/cups.h>
+#include <stdio.h>
 #include <sys/_types/_u_int16_t.h>
 #include <sys/_types/_u_int32_t.h>
 #include <tgmath.h>
@@ -98,8 +99,8 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
             break;
         case NR34:
             oldValue = device->apu->data[localAddr];
-            _enableChannelIfPossible(device, GBSoundCH3, value, NR30, 0x100);
             _GBCh3Trigger(device, value, oldValue);
+            _enableChannelIfPossible(device, GBSoundCH3, value, NR30, 0x100);
             break;
         case NR44:
             _enableChannelIfPossible(device, GBSoundCH4, value, NR40, 0x40);
@@ -119,7 +120,9 @@ Byte GBReadAPURegister(GB_device* device, Word addr) {
     }
     if (localAddr >= 0x20) {
         // wave read
-        if (apu->activeChannels[GBSoundCH3] == false || apu->waveReadclock == device->cpu->divCounter) {
+        if (apu->activeChannels[GBSoundCH3] == false) {
+            return apu->data[localAddr];
+        } else if (apu->waveReadclock == device->cpu->divCounter) {
             return apu->waveValue;
         }
         return 0xFF;
@@ -193,12 +196,40 @@ void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, 
 }
 
 void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue)  {
+    bool dmgCorruptEnabled = true;
     if (value & 0x80) { // triggered
+        if (dmgCorruptEnabled == true &&
+            device->apu->activeChannels[GBSoundCH3] == true &&
+            device->apu->channelClockDelay[GBSoundCH3] == 0) {
+            Byte idx = (device->apu->waveReaderCursor + 1);
+            Byte offset = (idx >> 1) & 0xF;
+
+            // Source: Sameboy apu.c https://github.com/LIJI32/SameBoy/blob/master/Core/apu.c#L634
+            /* This glitch varies between models and even specific instances:
+                DMG-B:     Most of them behave as emulated. A few behave differently.
+                SGB:       As far as I know, all tested instances behave as emulated.
+                MGB, SGB2: Most instances behave non-deterministically, a few behave as emulated.
+                
+                For DMG-B emulation I emulate the most common behavior, which blargg's tests expect (not my own DMG-B, which fails it)
+                For MGB emulation, I emulate my Game Boy Light, which happens to be deterministic.
+
+                Additionally, I believe DMGs, including those we behave differently than emulated,
+                are all deterministic. */
+            if (offset < 4) {
+                device->apu->data[APU_WAVE_START] = device->apu->data[APU_WAVE_START + offset];
+            } 
+            else {
+                Byte delta = (offset & ~3);
+                memcpy(device->apu->data + APU_WAVE_START,
+                       device->apu->data + APU_WAVE_START + delta,
+                       4);
+            }
+        }
         device->apu->waveReaderCursor = 0;
         
         // TODO: refactor
         u_int16_t period = _GBChannelPeriod(device, NR33);
-        u_int32_t periodValue = 2048 - period; 
+        u_int32_t periodValue = 2048 - period;
         device->apu->channelClockDelay[GBSoundCH3] = periodValue + 2;
     }
 }
@@ -277,7 +308,7 @@ void _extractWaveSample(GB_device* device, bool force) {
     if (device->apu->channelClockDelay[GBSoundCH3] == 0) {
         apu->waveReaderCursor = (apu->waveReaderCursor + 1) % 32;
         int index = apu->waveReaderCursor / 2;
-        Byte sampleValue = apu->data[0x20 + index];
+        Byte sampleValue = apu->data[APU_WAVE_START + index];
         apu->waveValue = sampleValue;
 
         if ((apu->waveReaderCursor & 1) == 1) {

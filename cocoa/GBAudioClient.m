@@ -107,7 +107,7 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
     device->apu->sampleRate = rate;
     GBApuSetSampleReadyCallback(device, _GBOnSampleReadyBack, (__bridge void *)(self));
     //
-    [self start];
+    //[self start];
 
     return self;
 }
