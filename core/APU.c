@@ -26,7 +26,7 @@ void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value);
 void _disableChannelIfOff(GB_device* device, GBSoundChannel channel);
 void _GB_updateLengthTimer(GB_device* device, GBSoundChannel channel, int regStart, Word max);
 void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue, int regStart, Word lengMax);
-void _triggerCh1Sweep(GB_device* device);
+void _triggerCh1Sweep(GB_device* device, bool checkOnly);
 void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue);
 void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue);
 void _ch1SweepUpdate(GB_device* device);
@@ -174,29 +174,6 @@ void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue,
 
 u_int32_t triggerSinceReset = 0;
 
-void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue) {
-    if (newValue == 0xC0) {
-        newValue = newValue;
-    }
-    Byte step = device->apu->data[NR10] & 0x7;
-    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
-    u_int16_t period = _GBChannelPeriod(device, NR13);
-    if (newValue & 0x7) {
-        device->apu->periodDelta = (period >> step);
-    }
-    if (newValue & 0x80) { // triggered
-        triggerSinceReset = 0;
-        device->apu->ch1SweepEnabled = (pace != 0) ? true : false;
-        device->apu->periodSweepTimer = (pace != 0) ? pace - 1 : 8;
-        device->apu->periodOnTrigger = period;
-        device->apu->periodDelta = period >> step;
-        if (step != 0) {
-            printf("triggered sweep %02x; c: %8x; period = 0x%04x;\n", newValue, device->cpu->divCounter, period);
-            _triggerCh1Sweep(device);
-        }
-    }
-}
-
 void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue)  {
     bool dmgCorruptEnabled = true;
     if (value & 0x80) { // triggered
@@ -233,6 +210,74 @@ void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue)  {
         u_int16_t period = _GBChannelPeriod(device, NR33);
         u_int32_t periodValue = 2048 - period;
         device->apu->channelClockDelay[GBSoundCH3] = periodValue + 2;
+    }
+}
+
+void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue) {
+    if (newValue == 0xC0) {
+        newValue = newValue;
+    }
+    Byte step = device->apu->data[NR10] & 0x7;
+    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
+    u_int16_t period = _GBChannelPeriod(device, NR13);
+
+    if (newValue & 0x80) { // triggered
+        triggerSinceReset = 0;
+        device->apu->ch1SweepEnabled = (pace != 0) ? true : false;
+        device->apu->periodSweepTimer = (pace != 0) ? pace : 8;
+        device->apu->periodOnTrigger = period;
+        if (step != 0) {
+            printf("triggered sweep %02x; c: %8x; period = 0x%04x;\n", newValue, device->cpu->divCounter, period);
+            _triggerCh1Sweep(device, (device->apu->data[NR10] & 0x8) != 0);
+        }
+    }
+}
+
+void _ch1SweepUpdate(GB_device* device) {
+    if (device->apu->ch1SweepEnabled == false || false == device->apu->activeChannels[GBSoundCH1]) {
+        return;
+    }
+    
+    GBApu* apu = device->apu;
+    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
+    Byte step = apu->data[NR10] & 0x7;
+
+    apu->periodSweepTimer--;
+    printf("periode sweep: %d\n", apu->periodSweepTimer);
+    if (apu->periodSweepTimer == 0) {
+        if (pace == 0) {
+            apu->periodSweepTimer = 8;
+        } else {
+            apu->periodSweepTimer = pace;
+            _triggerCh1Sweep(device, false);
+        }        
+    }
+}
+
+void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
+    GBApu* apu = device->apu;
+
+    Byte step = apu->data[NR10] & 0x7;
+    
+    u_int16_t periodOnTrigger = apu->periodOnTrigger;
+    device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
+
+    u_int16_t delta = periodOnTrigger >> step;
+    if ((apu->data[NR10] & 0x8) != 0) {
+        // uses two's complement for substraction
+        delta = ~delta + 1;
+    }
+    
+    u_int16_t newP = periodOnTrigger + delta;
+    
+    printf("triggers : %d; period = 0x%04x; c: %8x\n", triggerSinceReset, newP, device->cpu->divCounter);
+    if (newP > 0x7FF && (apu->data[NR10] & 0x8) == 0) {
+        apu->activeChannels[GBSoundCH1] = false;
+        printf("Channel disabled\n");
+    } else if (checkOnly == false) {
+        apu->periodOnTrigger = (newP & 0x7FF);
+        _GBWriteChannelPeriod(device, NR13, newP);
+        triggerSinceReset++;
     }
 }
 
@@ -499,58 +544,6 @@ void GBApuDiv(GB_device* device) {
     }
 }
 
-void _ch1SweepUpdate(GB_device* device) {
-    if (device->apu->ch1SweepEnabled == false || false == device->apu->activeChannels[GBSoundCH1]) {
-        return;
-    }
-    GBApu* apu = device->apu;
-    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
-    Byte step = apu->data[NR10] & 0x7;
-    if (apu->periodSweepTimer == 0 && pace == 0) {
-        // restart counting without trigger
-        apu->periodSweepTimer = 8;
-    }
-
-    printf("periode sweep: %d\n", apu->periodSweepTimer);
-    if (apu->periodSweepTimer == 0) {
-        apu->periodSweepTimer = pace;
-        _triggerCh1Sweep(device);
-    }
-    
-    apu->periodSweepTimer--;
-}
-
-void _triggerCh1Sweep(GB_device* device) {
-    GBApu* apu = device->apu;
-
-    Byte step = apu->data[NR10] & 0x7;
-    
-    u_int16_t period = apu->periodOnTrigger;
-    device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
-
-    u_int16_t delta = apu->periodDelta;
-    if ((apu->data[NR10] & 0x8) != 0) {
-        // uses two's complement for substraction
-        delta = ~delta + 1;
-    }
-    
-    u_int16_t newP = period + delta;
-    if (newP == 0x4fc) {
-        newP = newP;
-    }
-    
-    printf("triggers : %d; period = 0x%04x; c: %8x\n", triggerSinceReset, newP, device->cpu->divCounter);
-    if (newP > 0x7FF && (apu->data[NR10] & 0x8) == 0) {
-        apu->activeChannels[GBSoundCH1] = false;
-        printf("Channel disabled\n");
-    } else {
-        apu->periodDelta = (newP & 0x7FF) >> step;
-        apu->periodOnTrigger = (newP & 0x7FF);
-        _GBWriteChannelPeriod(device, NR13, newP);
-        triggerSinceReset++;
-    }
-}
-
 void _triggerCh4(GB_device* device, Byte value) {
     if ((value & 0x80) == 0 || _GBIsDacOn(device, GBSoundCH4)) {
         return;
@@ -648,7 +641,6 @@ void GBApuReset(GB_device* device) {
     GBApu* apu = device->apu;
     apu->clock = 0;
     apu->sampleRate = 0;
-    apu->periodDelta = 0;
     apu->periodOnTrigger = 0;
     apu->ch1SweepEnabled = false;
     apu->ch1SweepStop = false;

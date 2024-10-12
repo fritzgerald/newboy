@@ -73,7 +73,6 @@ typedef enum {
 struct GBAPU_s {
     u_int32_t clock;
     u_int32_t sampleRate;
-    u_int16_t periodDelta;
     u_int16_t periodOnTrigger;
     u_int16_t lfsrState;
     u_int32_t waveReadclock;
