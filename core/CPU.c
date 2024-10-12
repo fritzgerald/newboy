@@ -159,7 +159,7 @@ Byte ins_nop(GB_device* device) {
 Byte ins_stop(GB_device* device) {
     device->cpu->registers.pc+=2;
     device->mmu->div = 0;
-    //device->cpu->is_halted = true;
+    device->cpu->is_halted = true;
     return 4; 
 }
 Byte ins_bad_ins(GB_device* device) { 
