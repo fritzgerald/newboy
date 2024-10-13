@@ -77,7 +77,7 @@ struct GBAPU_s {
     u_int16_t lfsrState;
     u_int32_t waveReadclock;
     bool ch1SweepEnabled;
-    bool ch1SweepStop;
+    bool ch1StepZero;
     bool ch1NegModeUsed;
     Byte divApu;
     Byte waveReaderCursor;

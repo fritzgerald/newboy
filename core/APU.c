@@ -223,7 +223,7 @@ void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, 
 
     if (newValue & 0x80) { // triggered
         triggerSinceReset = 0;
-        device->apu->ch1SweepEnabled = (pace != 0) ? true : false;
+        device->apu->ch1SweepEnabled = (pace != 0 || step != 0) ? true : false;
         device->apu->periodSweepTimer = (pace != 0) ? pace : 8;
         device->apu->periodOnTrigger = period;
         if (step != 0) {
@@ -249,15 +249,20 @@ void _ch1SweepUpdate(GB_device* device) {
             apu->periodSweepTimer = 8;
         } else {
             apu->periodSweepTimer = pace;
-            _triggerCh1Sweep(device, false);
+            if (step != 0 || apu->ch1StepZero == false) {
+                _triggerCh1Sweep(device, false);
+                apu->ch1StepZero = step == 0;
+            } else {
+                device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
+            }
         }        
     }
 }
 
 void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
     GBApu* apu = device->apu;
-
     Byte step = apu->data[NR10] & 0x7;
+    Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
     
     u_int16_t periodOnTrigger = apu->periodOnTrigger;
     device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
@@ -270,6 +275,7 @@ void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
     
     u_int16_t newP = periodOnTrigger + delta;
     
+    printf("pace = %d; step = %d \n", pace, step);
     printf("triggers : %d; period = 0x%04x; c: %8x\n", triggerSinceReset, newP, device->cpu->divCounter);
     if (newP > 0x7FF && (apu->data[NR10] & 0x8) == 0) {
         apu->activeChannels[GBSoundCH1] = false;
@@ -278,6 +284,7 @@ void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
         apu->periodOnTrigger = (newP & 0x7FF);
         _GBWriteChannelPeriod(device, NR13, newP);
         triggerSinceReset++;
+        printf("Freq updated\n");
     }
 }
 
@@ -643,7 +650,6 @@ void GBApuReset(GB_device* device) {
     apu->sampleRate = 0;
     apu->periodOnTrigger = 0;
     apu->ch1SweepEnabled = false;
-    apu->ch1SweepStop = false;
     apu->ch1NegModeUsed = false;
     apu->divApu = 0;
     apu->waveReaderCursor = 0;
