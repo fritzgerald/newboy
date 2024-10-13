@@ -63,7 +63,12 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         }
     }
     if (localAddr >= 0x20) {
-        apu->data[localAddr] = value;
+        if (false == apu->activeChannels[GBSoundCH3]) {
+            apu->data[localAddr] = value;
+        } else if(apu->waveReadclock == device->cpu->divCounter) {
+            apu->data[0x20 + apu->waveReaderCursor / 2] = value;
+        }
+        
         return;
     }
 
