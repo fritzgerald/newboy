@@ -31,6 +31,7 @@ void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue)
 void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue);
 void _ch1SweepUpdate(GB_device* device);
 void GBApuReset(GB_device* device);
+void GBApuDMGDown(GB_device* device);
 void _GB_update_LFSR(GB_device* device);
 void _GB_gen_noise_wave(GB_device* device);
 void _triggerCh4(GB_device* device, Byte value);
@@ -43,9 +44,21 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         return; //Out of bounds
     }
 
+    printf("write to %4x value %2x\n", addr, value);
     if (device->apu->data[NR52] == 0) {
         //power off make sur we don't write to reg other than NR52
         if (localAddr != NR52) {
+            switch (localAddr) {
+                case NR11:case NR21:case NR41:
+                    apu->channelLen[localAddr / 0x05] = value & 0x3F;
+                    break;
+                case NR31:
+                    apu->channelLen[localAddr / 0x05] = value; 
+                    break;
+                default:
+                    printf("Ignoring write to %4x value %2x\n", addr, value);
+                    break;
+            }
             return;
         }
     }
@@ -77,7 +90,9 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         case NR52:
             device->apu->data[NR52] = value & 0x80;
             if (device->apu->data[NR52] == 0) {
-                GBApuReset(device);
+                GBApuDMGDown(device);
+                // TODO: on CGB call APU_RESET instead
+                // GBApuReset(device);
             }
             break;
         case NR12: case NR22: case NR42:
@@ -493,6 +508,7 @@ void _GB_updateLengthTimer(GB_device* device, GBSoundChannel channel, int regSta
     GBApu* apu = device->apu;
     if (apu->data[regStart + 4] & 0x40) {
         apu->channelLen[channel] = (apu->channelLen[channel] + 1) % max;
+        printf("channel %d. len = %d\n", channel + 1,apu->channelLen[channel]);
         if (apu->channelLen[channel] == 0) {
             apu->activeChannels[channel] = false;
         }
@@ -642,6 +658,26 @@ void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue)
         device->apu->activeChannels[GBSoundCH1] = false;
     }
     device->apu->ch1NegModeUsed = false;
+}
+
+void GBApuDMGDown(GB_device* device) {
+    GBApu* apu = device->apu;
+    apu->clock = 0;
+    apu->sampleRate = 0;
+    apu->periodOnTrigger = 0;
+    apu->ch1SweepEnabled = false;
+    apu->ch1NegModeUsed = false;
+    apu->divApu = 0;
+    apu->waveReaderCursor = 0;
+
+    apu->periodSweepTimer = 0;
+    memset(apu->envelopeSweepTimer, 0, GBSoundChannelCount);
+    memset(apu->envelopeVolume, 0, GBSoundChannelCount);
+    memset(apu->activeChannels, false, GBSoundChannelCount);
+    memset(apu->channelValues, 0, GBSoundChannelCount);
+    // memset(apu->channelClock, 0, GBSoundChannelCount);
+    // memset(apu->channelLen, 0, GBSoundChannelCount);
+    memset(apu->data, 0, 0x20);
 }
 
 void GBApuReset(GB_device* device) {
