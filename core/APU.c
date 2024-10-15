@@ -44,7 +44,6 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
         return; //Out of bounds
     }
 
-    printf("write to %4x value %2x\n", addr, value);
     if (device->apu->data[NR52] == 0) {
         //power off make sur we don't write to reg other than NR52
         if (localAddr != NR52) {
@@ -56,7 +55,6 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
                     apu->channelLen[localAddr / 0x05] = value; 
                     break;
                 default:
-                    printf("Ignoring write to %4x value %2x\n", addr, value);
                     break;
             }
             return;
@@ -247,7 +245,6 @@ void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, 
         device->apu->periodSweepTimer = (pace != 0) ? pace : 8;
         device->apu->periodOnTrigger = period;
         if (step != 0) {
-            printf("triggered sweep %02x; c: %8x; period = 0x%04x;\n", newValue, device->cpu->divCounter, period);
             _triggerCh1Sweep(device, (device->apu->data[NR10] & 0x8) != 0);
         }
     }
@@ -263,7 +260,6 @@ void _ch1SweepUpdate(GB_device* device) {
     Byte step = apu->data[NR10] & 0x7;
 
     apu->periodSweepTimer--;
-    printf("periode sweep: %d\n", apu->periodSweepTimer);
     if (apu->periodSweepTimer == 0) {
         if (pace == 0) {
             apu->periodSweepTimer = 8;
@@ -295,16 +291,12 @@ void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
     
     u_int16_t newP = periodOnTrigger + delta;
     
-    printf("pace = %d; step = %d \n", pace, step);
-    printf("triggers : %d; period = 0x%04x; c: %8x\n", triggerSinceReset, newP, device->cpu->divCounter);
     if (newP > 0x7FF && (apu->data[NR10] & 0x8) == 0) {
         apu->activeChannels[GBSoundCH1] = false;
-        printf("Channel disabled\n");
     } else if (checkOnly == false) {
         apu->periodOnTrigger = (newP & 0x7FF);
         _GBWriteChannelPeriod(device, NR13, newP);
         triggerSinceReset++;
-        printf("Freq updated\n");
     }
 }
 
@@ -314,7 +306,6 @@ void _enableChannelIfPossible(GB_device* device, GBSoundChannel channel, Byte va
     _handleLenTrigger(device, channel, value, oldValue, regStart, lengMax);
 
     if ((value & 0x80) && _GBIsDacOn(device, channel)) {
-        printf("channel %02d enabled; value: %02x; old: %02x\n", channel + 1, value, oldValue);
         device->apu->activeChannels[channel] = true;
         device->apu->channelClock[channel] = 0;
         device->apu->channelSweepPace[channel] = device->apu->data[regStart + 2] & 0x7;
@@ -513,7 +504,6 @@ void _GB_updateLengthTimer(GB_device* device, GBSoundChannel channel, int regSta
     GBApu* apu = device->apu;
     if (apu->data[regStart + 4] & 0x40) {
         apu->channelLen[channel] = (apu->channelLen[channel] + 1) % max;
-        printf("channel %d. len = %d\n", channel + 1,apu->channelLen[channel]);
         if (apu->channelLen[channel] == 0) {
             apu->activeChannels[channel] = false;
         }
@@ -661,7 +651,6 @@ void _ch1SweepNegateExitTrigger(GB_device* device, Byte newValue, Byte oldValue)
         return;
     }
     if ((device->apu->divApu % 0x3) == 0x0 || device->apu->ch1NegModeUsed == true) {
-        printf("exit negate mode disabled: %2x\n", newValue);
         device->apu->activeChannels[GBSoundCH1] = false;
     }
     device->apu->ch1NegModeUsed = false;
