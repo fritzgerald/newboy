@@ -643,7 +643,9 @@ void GBApuStep(GB_device* device, Byte cycles) {
 
         if(device->apu->clock % cyclesPerSample == 0) {
             GBSample out = highPass(device, sample);
-            apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, out);
+            if (apu->sampleReadyCallback != NULL) {
+                apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, out);
+            }
         }
     }
 }

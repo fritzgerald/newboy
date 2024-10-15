@@ -3,8 +3,6 @@
 #include "definitions.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/_types/_u_int16_t.h>
-#include <sys/_types/_u_int32_t.h>
 
 #define NR10 0x00
 #define NR11 0x01
