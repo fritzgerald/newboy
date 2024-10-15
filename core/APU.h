@@ -78,7 +78,6 @@ struct GBAPU_s {
     bool ch1StepZero;
     bool ch1NegModeUsed;
     Byte divApu;
-    Byte waveReaderCursor;
     Byte waveValue;
     GBSample lastSample;
     GBSample lastSampleOutput;
@@ -94,6 +93,7 @@ struct GBAPU_s {
     Byte channelLen[GBSoundChannelCount];
     Byte channelSweepPace[GBSoundChannelCount];
     u_int32_t channelClockDelay[GBSoundChannelCount];
+    Byte channelReaderCursors[GBSoundChannelCount];
     Byte data[0x30];
 };
 

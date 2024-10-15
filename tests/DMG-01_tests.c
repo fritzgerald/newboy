@@ -71,18 +71,18 @@ int test_dmg_sound() {
     return fails;
 }
 
-GBTestSuite* generateDMG_sound_suite() {
-    GBTestCase tet = { "test 01-registers", test_dmg_sound};
-    GBTestCase tests[] = { tet };
-}
-
-
 int main(int argc, const char * argv[]) {
+    printf("----------------------------\n");
+    printf("Testing DMG sound roms\n");
+    printf("----------------------------\n");
     int failTests = test_dmg_sound();
+
+    printf("----------------------------\n");
     if (failTests == 0) {
         printf("✅ test_dmg_sound succeed\n");
     } else {
         printf("⛔️ test_dmg_sound failed\n");
     }
+    printf("----------------------------\n");
     return 0;
 }
