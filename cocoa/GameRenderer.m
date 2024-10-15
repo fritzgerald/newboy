@@ -1,4 +1,6 @@
 #import "GameRenderer.h"
+#include <sys/_types/_u_int64_t.h>
+#include <stdint.h>
 #include <Security/cssmconfig.h>
 #include "cocoa/GBAudioClient.h"
 #include "core/APU.h"
@@ -17,6 +19,10 @@
 #include "core/CPU.h"
 #include "core/MMU.h"
 #include "core/PPU.h"
+
+uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride);
+u_int64_t stepCounter = 0;
+
 
 @implementation GameRenderer
 {
@@ -45,24 +51,24 @@
     self = [super init];
 
     _gameboydevice = GB_newDevice();
-    //GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
     char* testRoms[] = { 
-        "testroms/cgb_sound/cgb_sound.gb",
-        "testroms/cgb_sound/rom_singles/01-registers.gb", 
-        "testroms/cgb_sound/rom_singles/02-len ctr.gb",
-        "testroms/cgb_sound/rom_singles/03-trigger.gb",
-        "testroms/cgb_sound/rom_singles/04-sweep.gb",
-        "testroms/cgb_sound/rom_singles/05-sweep details.gb",
-        "testroms/cgb_sound/rom_singles/06-overflow on trigger.gb",
-        "testroms/cgb_sound/rom_singles/07-len sweep period sync.gb",
-        "testroms/cgb_sound/rom_singles/08-len ctr during power.gb",
-        "testroms/cgb_sound/rom_singles/09-wave read while on.gb",
-        "testroms/cgb_sound/rom_singles/10-wave trigger while on.gb",
-        "testroms/cgb_sound/rom_singles/11-regs after power.gb",
-        "testroms/cgb_sound/rom_singles/12-wave.gb",
+        "testroms/dmg_sound/dmg_sound.gb",
+        "testroms/dmg_sound/rom_singles/01-registers.gb", 
+        "testroms/dmg_sound/rom_singles/02-len ctr.gb",
+        "testroms/dmg_sound/rom_singles/03-trigger.gb",
+        "testroms/dmg_sound/rom_singles/04-sweep.gb",
+        "testroms/dmg_sound/rom_singles/05-sweep details.gb",
+        "testroms/dmg_sound/rom_singles/06-overflow on trigger.gb",
+        "testroms/dmg_sound/rom_singles/07-len sweep period sync.gb",
+        "testroms/dmg_sound/rom_singles/08-len ctr during power.gb",
+        "testroms/dmg_sound/rom_singles/09-wave read while on.gb",
+        "testroms/dmg_sound/rom_singles/10-wave trigger while on.gb",
+        "testroms/dmg_sound/rom_singles/11-regs after power.gb",
+        "testroms/dmg_sound/rom_singles/12-wave write while on.gb",
         "testroms/test.gb"
     };
-    GB_deviceloadRom(_gameboydevice, testRoms[13]);
+    //GB_deviceloadRom(_gameboydevice, testRoms[12]);
 
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
@@ -87,13 +93,14 @@
 }
 
 
--(CGImageRef)renderBackgroundFrame {
+-(CGImageRef)renderFrame {
     int strIdx = 0;
     char console[100];
     // if(_gameboydevice->cpu->is_halted == false)
     while (_gameboydevice->ppu->frameReady == false){
         GBUpdateJoypadState(_gameboydevice, self.joypad);
         GB_emulationStep(_gameboydevice);
+        stepCounter++;
     }
     // TODO: Render Frame
     // Frame done
@@ -110,8 +117,9 @@
         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
         bytesPerRow:160 * 4
         bitsPerPixel:32];
+    //[self printScreenCRC];
     
-    //free(data);
+    free(data);
     return [img CGImage];
 }
 
@@ -212,7 +220,7 @@
 }
 
 - (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
-    CGImageRef frame = [self renderBackgroundFrame];
+    CGImageRef frame = [self renderFrame];
     // Create a new command buffer for each render pass to the current drawable.
     id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -256,4 +264,32 @@
     _viewportSize.y = drawableSize.height;
 }
 
+-(void)printScreenCRC {
+    uint8_t crc1 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
+    uint8_t crc2 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 2);
+    uint8_t crc3 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 1, 2);
+    uint8_t crc4 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBObjectFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
+
+    NSLog(@" CRC: %02x%02x%02x%02x", crc4, crc3, crc2, crc1);
+    NSLog(@"Steps: %llx", stepCounter);
+}
+
 @end
+
+uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride) {
+    if (data == NULL) {
+        return 0;
+    }
+    uint8_t coefficient = 0xb2;
+
+    uint8_t remainder = 0;
+    for (int byte = start; byte < nBytes; byte += stride) {
+        remainder ^= data[byte];
+        // Perform modulo-2 division, a bit at a time.
+        for (uint8_t i = 0; i < 8; i++) {
+            // Try to divide the current data bit.
+            remainder = ((remainder & 0x1) != 0) ? (remainder >> 1) ^ coefficient : (remainder >> 1);
+        }
+    }
+    return remainder ^ 0xFF;
+}

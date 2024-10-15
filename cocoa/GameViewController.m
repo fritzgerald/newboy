@@ -70,6 +70,10 @@
             case kVK_Escape:
                 self->joypad.selectPressed = true;
                 break;
+            case kVK_ANSI_B:
+                [self->_renderer printScreenCRC];
+                break;
+
         }
         return nil;
     }];

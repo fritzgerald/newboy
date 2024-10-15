@@ -14,4 +14,6 @@
 
 - (void)drawableResize:(CGSize)drawableSize;
 
+-(void)printScreenCRC;
+
 @end
