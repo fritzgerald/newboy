@@ -549,7 +549,7 @@ void GBApuDiv(GB_device* device) {
     if ((apu->divApu & 0x7) == 0x7) { //CH1 sweep
         _gb_update_envelop_pace(device, GBSoundCH1, NR10);
         _gb_update_envelop_pace(device, GBSoundCH2, NR20);
-        _gb_update_envelop_pace(device, GBSoundCH3, NR40);
+        _gb_update_envelop_pace(device, GBSoundCH4, NR40);
     }
 
     for (int ch = 0; ch < GBSoundChannelCount; ch++) {
