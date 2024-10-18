@@ -1,4 +1,5 @@
 #import "GameViewController.h"
+#include <Foundation/NSString.h>
 #include <stdbool.h>
 #include <AppKit/AppKit.h>
 #include <Metal/Metal.h>
@@ -14,6 +15,15 @@
 @implementation GameViewController {
     GameRenderer* _renderer;
     GBJoypadState joypad;
+    NSString* _romPath;
+}
+
+-(id)initWithRomFilePath:(NSString *) path {
+    self = [super init];
+    if (self) {
+        _romPath = path;
+    }
+    return self;
 }
 
 - (void)loadView {
@@ -41,7 +51,8 @@
     view.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
 
     _renderer = [[GameRenderer alloc] initWithMetalDevice:device
-                                      drawablePixelFormat:view.metalLayer.pixelFormat];
+                                      drawablePixelFormat:view.metalLayer.pixelFormat
+                                      romPath:_romPath];
 
     [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^ NSEvent * (NSEvent * event){
 
@@ -69,9 +80,6 @@
                 break;
             case kVK_Escape:
                 self->joypad.selectPressed = true;
-                break;
-            case kVK_ANSI_B:
-                [self->_renderer printScreenCRC];
                 break;
 
         }

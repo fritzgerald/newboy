@@ -8,12 +8,11 @@
 @property GBJoypadState joypad;
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device
-                        drawablePixelFormat:(MTLPixelFormat)drawabklePixelFormat;
+                        drawablePixelFormat:(MTLPixelFormat)drawabklePixelFormat
+                        romPath:(NSString*)romPath;
 
 - (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer;
 
 - (void)drawableResize:(CGSize)drawableSize;
-
--(void)printScreenCRC;
 
 @end

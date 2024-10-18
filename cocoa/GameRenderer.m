@@ -1,24 +1,12 @@
 #import "GameRenderer.h"
-#include <sys/_types/_u_int64_t.h>
-#include <stdint.h>
-#include <Security/cssmconfig.h>
-#include "cocoa/GBAudioClient.h"
-#include "core/APU.h"
-#include <math.h>
-#include <Foundation/NSObjCRuntime.h>
-#include <stdbool.h>
-#include <CoreFoundation/CFCGTypes.h>
-#include <objc/objc.h>
-#include <CoreGraphics/CGGeometry.h>
-#include <CoreGraphics/CGImage.h>
-#include <AppKit/AppKit.h>
-#include <Metal/Metal.h>
+#include <Foundation/Foundation.h>
+#import "GBAudioClient.h"
+#import <CoreGraphics/CoreGraphics.h>
+#import <AppKit/AppKit.h>
+#import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 #import "GBShaderTypes.h"
-#include "core/Device.h"
-#include "core/CPU.h"
-#include "core/MMU.h"
-#include "core/PPU.h"
+#include "core/Newboy.h"
 
 uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride);
 u_int64_t stepCounter = 0;
@@ -43,15 +31,19 @@ u_int64_t stepCounter = 0;
     id<MTLTexture> _texture;
     GB_device* _gameboydevice;
     GBAudioClient *_audioClient;
+    NSString* _romPath;
 }
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device
                         drawablePixelFormat:(MTLPixelFormat)drawabklePixelFormat
+                        romPath:(NSString*)romPath
 {
     self = [super init];
 
+    _romPath = romPath;
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, "testroms/tetris.gb");
+    GB_deviceloadRom(_gameboydevice, [romPath cStringUsingEncoding:NSASCIIStringEncoding]);
+    //GB_deviceloadRom(_gameboydevice, "testroms/Dr. Mario.gb");
     char* testRoms[] = { 
         "testroms/dmg_sound/dmg_sound.gb",
         "testroms/dmg_sound/rom_singles/01-registers.gb", 
@@ -96,7 +88,6 @@ u_int64_t stepCounter = 0;
 -(CGImageRef)renderFrame {
     int strIdx = 0;
     char console[100];
-    // if(_gameboydevice->cpu->is_halted == false)
     while (_gameboydevice->ppu->frameReady == false){
         GBUpdateJoypadState(_gameboydevice, self.joypad);
         GB_emulationStep(_gameboydevice);

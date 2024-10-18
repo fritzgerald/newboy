@@ -3,4 +3,6 @@
 
 @interface GameViewController: NSViewController
 
+-(id)initWithRomFilePath:(NSString *) path;
+
 @end

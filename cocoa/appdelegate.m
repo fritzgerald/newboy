@@ -61,14 +61,12 @@
 
 - (void) startEmulator:(NSString*)romFile {
     NSRect frame = NSMakeRect(0, 0, 600, 600);
-    NSWindow* mainWindow  = [[NSWindow alloc] initWithContentRect:frame
-                        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
-                        backing:NSBackingStoreBuffered
-                        defer:NO];
-    mainWindow.title = @"NewBoy";
-    mainWindow.contentViewController = [[GBViewController alloc] initWithRomFilePath:romFile];
+    GameViewController* vc = [[GameViewController alloc] initWithRomFilePath:romFile];
+    NSWindow* window = [NSWindow windowWithContentViewController: vc];
+    window.title = @"NewBoy";
 
-    [mainWindow makeKeyAndOrderFront:nil];
+    [window setContentSize:NSMakeSize(600, 600)];
+    [window makeKeyAndOrderFront:nil];
 }
 
 -(void) presentGameViewController {
@@ -84,7 +82,6 @@
 - (void) applicationDidFinishLaunching:(NSNotification *)notification {
     [NSApp activate];
     [self setupMainMenu];
-    [self presentGameViewController];
 }
 
 @end
