@@ -86,13 +86,12 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
 
         // update DIV register
         u_int32_t newDiv = cpu->divCounter + 1;
-        u_int32_t changedBits = cpu->divCounter  ^ newDiv;
         u_int32_t triggers = cpu->divCounter & ~newDiv;
 
         cpu->divCounter = newDiv;
-        mmu->div = (cpu->divCounter >> 6);
+        mmu->div = (cpu->divCounter >> 8);
 
-        if (mmu->isTimaEnabled == true && mmu->timaStatus == GBTimaRunning && (changedBits & bitTracked)) {
+        if (mmu->isTimaEnabled == true && mmu->timaStatus == GBTimaRunning && (triggers & bitTracked)) {
             mmu->tima++;
             if (mmu->tima == 0) {
                 mmu->timaStatus = GBTimaReloading;
@@ -100,9 +99,6 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
         }
 
         Byte trackedBit = 0x10; // TODO: double speed mode 0x20?
-        // if ((cpu->divCounter & 0xFFF) == 0x800 || (cpu->divCounter & 0xFFFF) == 0x1000 ) {
-        //    GBApuDiv(device);
-        // }
         if (triggers & 0x400) {
              GBApuDiv(device);
         }

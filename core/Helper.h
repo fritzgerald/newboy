@@ -1,0 +1,1 @@
+#define GBprintf(f_, ...) printf(f_, ##__VA_ARGS__)

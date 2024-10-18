@@ -3,16 +3,11 @@
 #include "CPU.h"
 #include "Device.h"
 #include "core/definitions.h"
-#include <cups/cups.h>
+#include "Helper.h"
 #include <stdio.h>
-#include <sys/_types/_u_int16_t.h>
-#include <sys/_types/_u_int32_t.h>
-#include <tgmath.h>
-#include <stdbool.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdint.h>
 
 //#define APU_HZ 1048576
 #define APU_HZ 2097152
@@ -52,7 +47,9 @@ const Byte _gbSquareDudities[4][8] = {
 void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
     GBApu* apu = device->apu;
     Word localAddr = (addr & 0xFF) - 0x10; // start at 0xFF10
+    //GBprintf("APU: write to address %04x: %02x\n", addr, value);
     if (localAddr >= 0x30) {
+        GBprintf("APU: write to address %04x is out of bounds\n", addr);
         return; //Out of bounds
     }
 
@@ -67,6 +64,7 @@ void GBWriteToAPURegister(GB_device* device, Word addr, Byte value) {
                     apu->channelLen[localAddr / 0x05] = value; 
                     break;
                 default:
+                    GBprintf("APU: APU off write to %04x ignored\n", addr);
                     break;
             }
             return;
@@ -633,8 +631,8 @@ void GBApuStep(GB_device* device, Byte cycles) {
         sample.right *= 0x100;
 
         if(device->apu->clock % cyclesPerSample == 0) {
-            GBSample out = sample;
-            //GBSample out = highPass(device, sample);
+            //GBSample out = sample;
+            GBSample out = highPass(device, sample);
             if (apu->sampleReadyCallback != NULL) {
                 apu->sampleReadyCallback(apu->sampleReadyCallbackSender ,device, out);
             }

@@ -3,6 +3,7 @@
 #include "PPU.h"
 #include "MMU.h"
 #include "APU.h"
+#include "Helper.h"
 #include "Bios.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -260,6 +261,10 @@ int GB_deviceloadRom(GB_device* device, const char* filePath) {
 
 Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
     int localAddress = addr & 0xFF;
+    if (localAddress != 0) {
+        GBprintf("MMU: read to FF00: %04x\n", addr);
+    }
+    
     switch (localAddress) {
         case 0x00:
             return _GBJoypadByteRepresentation(mem);
