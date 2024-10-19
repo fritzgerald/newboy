@@ -118,6 +118,12 @@
     }];
 }
 
+-(void)viewWillDisappear {
+    [super viewWillDisappear];
+
+    [_renderer disposeRessources];
+}
+
 - (void)renderToMetalLayer:(nonnull CAMetalLayer *)metalLayer {
     _renderer.joypad = joypad;
     [_renderer renderToMetalLayer: metalLayer];

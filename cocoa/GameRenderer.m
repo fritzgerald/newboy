@@ -43,25 +43,6 @@ u_int64_t stepCounter = 0;
     _romPath = romPath;
     _gameboydevice = GB_newDevice();
     GB_deviceloadRom(_gameboydevice, [romPath cStringUsingEncoding:NSASCIIStringEncoding]);
-    //GB_deviceloadRom(_gameboydevice, "testroms/Dr. Mario.gb");
-    char* testRoms[] = { 
-        "testroms/dmg_sound/dmg_sound.gb",
-        "testroms/dmg_sound/rom_singles/01-registers.gb", 
-        "testroms/dmg_sound/rom_singles/02-len ctr.gb",
-        "testroms/dmg_sound/rom_singles/03-trigger.gb",
-        "testroms/dmg_sound/rom_singles/04-sweep.gb",
-        "testroms/dmg_sound/rom_singles/05-sweep details.gb",
-        "testroms/dmg_sound/rom_singles/06-overflow on trigger.gb",
-        "testroms/dmg_sound/rom_singles/07-len sweep period sync.gb",
-        "testroms/dmg_sound/rom_singles/08-len ctr during power.gb",
-        "testroms/dmg_sound/rom_singles/09-wave read while on.gb",
-        "testroms/dmg_sound/rom_singles/10-wave trigger while on.gb",
-        "testroms/dmg_sound/rom_singles/11-regs after power.gb",
-        "testroms/dmg_sound/rom_singles/12-wave write while on.gb",
-        "testroms/test.gb"
-    };
-    //GB_deviceloadRom(_gameboydevice, testRoms[12]);
-
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
     _frameNum = 0;
@@ -80,6 +61,8 @@ u_int64_t stepCounter = 0;
     __weak GameRenderer* weakSelf = self;
 
     [self createRenderPipeline:drawabklePixelFormat];
+
+    [_audioClient start];
 
     return self;
 }
@@ -263,6 +246,10 @@ u_int64_t stepCounter = 0;
 
     NSLog(@" CRC: %02x%02x%02x%02x", crc4, crc3, crc2, crc1);
     NSLog(@"Steps: %llx", stepCounter);
+}
+
+-(void)disposeRessources {
+    [_audioClient stop];
 }
 
 @end

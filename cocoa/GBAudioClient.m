@@ -1,4 +1,5 @@
 #import "GBAudioClient.h"
+#include <AudioToolbox/AUGraph.h>
 #include "core/definitions.h"
 #include <Foundation/NSObjCRuntime.h>
 #import <Foundation/Foundation.h>
@@ -106,8 +107,6 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
     self.sampleRate = rate;
     device->apu->sampleRate = rate;
     GBApuSetSampleReadyCallback(device, _GBOnSampleReadyBack, (__bridge void *)(self));
-    //
-    [self start];
 
     return self;
 }
@@ -154,6 +153,14 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
         return;
     }
 
+}
+
+-(void)stop {
+    OSErr err = AudioOutputUnitStop(audioUnit);
+    if (err) {
+        NSLog(@"Error stoping unit: %hd", err);
+        return;
+    }
 }
 
 OSStatus render(

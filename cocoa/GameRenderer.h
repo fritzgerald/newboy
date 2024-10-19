@@ -15,4 +15,6 @@
 
 - (void)drawableResize:(CGSize)drawableSize;
 
+-(void)disposeRessources;
+
 @end

@@ -10,4 +10,7 @@
 
 -(id)initWithSampleRate:(NSInteger) rate andDevice:(GB_device*) device;
 
+-(void)start;
+-(void)stop;
+
 @end
