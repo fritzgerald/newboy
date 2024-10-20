@@ -53,7 +53,7 @@ GB_device* GB_newDevice() {
     device->ppu = ppu;
     device->apu = apu;
 
-    GB_reset(device);
+    GBLoadBios(device);
 
     return device;
 }

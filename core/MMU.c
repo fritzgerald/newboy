@@ -17,6 +17,8 @@ Byte _GBJoypadByteRepresentation(GB_mmu* mem);
 
 Byte GB_deviceReadByte(GB_device* device, Word addr) {
     GB_mmu* mem = device->mmu;
+    int bankIndex = mem->romBankIndex == 0 ? 1 : mem->romBankIndex;
+
     switch (addr & 0xF000) {
         // MARK: ROM bank or BIOS
         case 0x0000:
@@ -32,14 +34,13 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
         case 0x1000: case 0x2000: case 0x3000:
             return mem->rom[addr];
         case 0x4000: case 0x5000: case 0x6000: case 0x7000:
-            return mem->rom[addr]; //TODO: handle ROM Bank switch here
-
+            return mem->rom[(0x4000 * bankIndex) + (addr & 0x3FFF)]; //TODO: handle ROM Bank switch here
         // MARK: VRAM
         case 0x8000: case 0x9000:
             return GB_deviceVramRead(device, addr);
         // MARK: External RAM
         case 0xA000: case 0xB000:
-            return mem->eRam[addr & 0x1FFF]; // TODO: handle Switch
+            return mem->eRam[(0x2000 * mem->ramBankIndex) + addr & 0x1FFF]; // TODO: handle Switch
         // MARK: Work RAM and echo
         case 0xC000: case 0xD000: case 0xE000:
             return mem->wRam[addr & 0x1FFF];
@@ -105,8 +106,17 @@ void GB_device_OAM_DMA(GB_device* device, Byte data) {
 void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
     GB_mmu* mem = device->mmu;
     switch (addr & 0xF000) {
-        case 0x0000: case 0x1000: case 0x2000: case 0x3000: case 0x4000:
-        case 0x5000: case 0x6000: case 0x7000:
+        case 0x0000: case 0x1000: 
+            mem->ramEnabled = value == 0x0A ? true : false;
+            break;
+        case 0x2000: case 0x3000: 
+            mem->romBankIndex = value & 0x1F;
+            break;
+        case 0x4000: case 0x5000: 
+            mem->ramBankIndex = value & 0x03;
+            break;
+        case 0x6000: case 0x7000:
+            mem->useAdvanceBankMode = value & 0x1 ? true : false;
             break; // TODO: Handle MBCs to define behavior
         case 0x8000: case 0x9000:
             GB_deviceVramWrite(device, addr, value);
@@ -254,6 +264,8 @@ int GB_deviceloadRom(GB_device* device, const char* filePath) {
     fread(device->mmu->rom, romSize, 1, cartridgeFile);
 
     // Handle eRam sizes
+    device->mmu->eRam = (u_int8_t *) malloc(ramSize);
+    memset(device->mmu->eRam, 0, ramSize);
 
     fclose(cartridgeFile);
     return GB_CARTRIDGE_SUCCESS;
@@ -347,11 +359,16 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
     }
 }
 
+void GBLoadBios(GB_device* device) {
+    device->mmu->in_bios = true;
+    memcpy(device->mmu->bios, GBDMGBios, GBDMGBiosLength);
+}
+
 void GB_deviceResetMMU(GB_device* device) {
     GB_mmu* mem = device->mmu;
     mem->in_bios = true;
     memcpy(mem->bios, GBDMGBios, GBDMGBiosLength);
-    memset(mem->eRam, 0, 0x2000);
+    // memset(mem->eRam, 0, 0x2000);
     memset(mem->wRam, 0, 0x2000);
     memset(mem->zRam, 0, 0x80);
 

@@ -47,10 +47,11 @@ struct GB_mmu_s {
     bool in_bios;
 
     Byte bios[0x100];
-    Byte* rom; // TODO: handle multiple rom sizes
-    Byte eRam[0x2000];
     Byte wRam[0x2000];
     Byte zRam[0x80];
+
+    Byte* rom;
+    Byte* eRam;
 
     Byte sb;
     Byte sc;
@@ -63,6 +64,11 @@ struct GB_mmu_s {
     Byte interruptEnable;
     Byte interruptRequest;
     Byte KEY1;
+    Byte romBankIndex;
+    Byte ramBankIndex;
+    bool useAdvanceBankMode;
+    bool ramEnabled;
+
     GBTimaState timaStatus;
     uint32_t timaCounter;
 
@@ -87,3 +93,4 @@ void GB_deviceResetMMU(GB_device* device);
 void GB_interrupt_request(GB_device* device, Byte ir);
 void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad);
 int32_t GBProcessMemEvents(GB_device* device, Byte cycles);
+void GBLoadBios(GB_device* device);
