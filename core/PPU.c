@@ -458,20 +458,16 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
 void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
     if (device->ppu->isWindowEnabled == false) {
         return;
-    } else if (xScan + 7 < device->ppu->windowX || line < device->ppu->windowY) {
+    } else if (xScan < (device->ppu->windowX - 7) || line < device->ppu->windowY) {
         return;
     }
 
-    if (line == 0) {
-        line = line;
-    }
-
     uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
-    Word scx = device->ppu->windowX;
+    Word scx = device->ppu->windowX - 7;
     Word scy = device->ppu->windowY;
 
-    u_int32_t pixelX = (xScan  + 7) - scx;
-    u_int32_t pixelY = line + scy;
+    u_int32_t pixelX = xScan - scx;
+    u_int32_t pixelY = line - scy;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;
@@ -584,17 +580,17 @@ uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset, bool isWindow) 
     if(isWindow == false) {
         startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
     } else {
-        startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9C00 : 0x9800;
+        startAddr = (device->ppu->windowTileMap == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
     }
 
+    uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
     if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
-        uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
         if (tileIdxData >= 128) {
             return tileIdxData;
         }
         return 256 + tileIdxData;
     }
-    return GB_deviceReadByte(device, startAddr + offset);
+    return tileIdxData;
 }
 
 uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
