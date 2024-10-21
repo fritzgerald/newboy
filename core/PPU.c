@@ -506,33 +506,30 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
         Byte tileIndex = device->ppu->oam[index + 2];
         Byte attributes = device->ppu->oam[index + 3];
 
-
-        Byte realTileIdx = tileIndex;
-        if (device->ppu->objSize == GB_tile_bit_value_0) {
-            realTileIdx = ((line - yPos) > 8) ? tileIndex | 0x01 : tileIndex & 0xFE;
-        }
-
         uint32_t column = (xScan - xPos) % 8;
         uint32_t row  = (line - yPos) % 8;
 
-        if (line >= (yPos + 8)) { // obj is 16 pixel long
-            if (attributes & 0x40) { // flip y
-                // force selection of first tile
-                tileIndex &= 0xFE;
+        if(objHeight == 16) {
+            if (line >= (yPos + 8)) { // obj is 16 pixel long
+                if (attributes & 0x40) { // flip y
+                    // force selection of first tile
+                    tileIndex &= 0xFE;
+                } else {
+                    // select the second tile 
+                    tileIndex |= 0x1;
+                }
+                
             } else {
-                // select the second tile 
-                tileIndex |= 0x1;
-            }
-            
-        } else {
-            if (attributes & 0x40) { // flip y
-                // select the second tile 
-                tileIndex |= 0x1;
-            } else {
-                // force selection of first tile
-                tileIndex &= 0xFE;
+                if (attributes & 0x40) { // flip y
+                    // select the second tile 
+                    tileIndex |= 0x1;
+                } else {
+                    // force selection of first tile
+                    tileIndex &= 0xFE;
+                }
             }
         }
+        
         if (attributes & 0x20) { // flip x
             column = 7 - column;
         }
