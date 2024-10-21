@@ -490,17 +490,17 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
     Byte objHeight = device->ppu->objSize == GB_tile_bit_value_0 ? 8 : 16;
     
     for (int index = 0; index < 0xA0; index += 4) {
-        Byte yPos = device->ppu->oam[index] - 16;
-        Byte xPos = device->ppu->oam[index + 1] - 8;
+        int16_t yPos = device->ppu->oam[index] - 16;
+        int16_t xPos = device->ppu->oam[index + 1] - 8;
 
-        Byte yBottom = yPos + objHeight;
-        Byte xRight = xPos + 8;
-        if (yBottom <= line || yPos > line || xRight <= xScan || xPos > xScan) {
+        int16_t yBottom = yPos + objHeight;
+        int16_t xRight = xPos + 8;
+        if (yBottom <= line || xRight <= xScan || yPos > line || xPos  > xScan) {
             // object outside vertical draw area
             continue;
         }
-        Byte tileIndex = device->ppu->oam[index + 2];
-        Byte attributes = device->ppu->oam[index + 3];
+        int16_t tileIndex = device->ppu->oam[index + 2];
+        int16_t attributes = device->ppu->oam[index + 3];
 
         uint32_t column = (xScan - xPos) % 8;
         uint32_t row  = (line - yPos) % 8;
