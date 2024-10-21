@@ -40,7 +40,10 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
             return GB_deviceVramRead(device, addr);
         // MARK: External RAM
         case 0xA000: case 0xB000:
-            return mem->eRam[(0x2000 * mem->ramBankIndex) + addr & 0x1FFF]; // TODO: handle Switch
+            if (mem->eRam && mem->eRam) {
+                return mem->eRam[(0x2000 * mem->ramBankIndex) + addr & 0x1FFF]; // TODO: handle Switch
+            }
+            return 0;
         // MARK: Work RAM and echo
         case 0xC000: case 0xD000: case 0xE000:
             return mem->wRam[addr & 0x1FFF];
@@ -122,7 +125,9 @@ void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
             GB_deviceVramWrite(device, addr, value);
             break;
         case 0xA000: case 0xB000:
-            mem->eRam[addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
+            if(mem->ramEnabled && mem->eRam) {
+                mem->eRam[addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
+            }
             break;
         // Work RAM and echo
         case 0xC000: case 0xD000: case 0xE000:
@@ -264,8 +269,13 @@ int GB_deviceloadRom(GB_device* device, const char* filePath) {
     fread(device->mmu->rom, romSize, 1, cartridgeFile);
 
     // Handle eRam sizes
-    device->mmu->eRam = (u_int8_t *) malloc(ramSize);
-    memset(device->mmu->eRam, 0, ramSize);
+    if (ramSize > 0) {
+        device->mmu->eRam = (u_int8_t *) malloc(ramSize);
+        memset(device->mmu->eRam, 0, ramSize);
+    } else {
+        device->mmu->eRam = 0;
+    }
+    device->mmu->cartridgeType = rawCartType;
 
     fclose(cartridgeFile);
     return GB_CARTRIDGE_SUCCESS;

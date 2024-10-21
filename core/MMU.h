@@ -76,6 +76,9 @@ struct GB_mmu_s {
     bool joypadButtonSelected;
     GBJoypadState joypadState;
 
+    //Rom data
+    Byte cartridgeType;
+
     // WIP
     int32_t nextEvent;
  	int32_t period;
