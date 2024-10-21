@@ -97,6 +97,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
 
 void GB_ClearFrame(GB_device* device) {
     memset(device->ppu->objPriorities, 0, 160 * 144);
+    memset(device->ppu->objPalettes0, 0, 160 * 144);
     memset(device->ppu->frameBuffer[GBObjectFrameBuffer], 0, sizeof(GBObjectFrameBuffer) * 160 * 144);
 }
 
@@ -310,7 +311,8 @@ void GB_deviceResetPPU(GB_device* device) {
     memset(ppu->oam, 0, 0xA0);
     memset(ppu->tiles, 0, 384 * 8 * 8);
 
-   memset(ppu->objPriorities, 0, 160 * 144);
+    memset(ppu->objPriorities, 0, 160 * 144);
+    memset(ppu->objPalettes0, 0, 160 * 144);
 
     unsigned short clock = 0;
     ppu->lineMode = GB_PPU_MODE_HBLANK;
@@ -380,9 +382,10 @@ unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value t
     }
 }
 
-unsigned int GB_ppu_getObjPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId) {
+unsigned int GB_ppu_getObjPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId, int paletteIndex) {
     // TODO: handle CGB
-    GBNonCBGColors color = ppu->objp0IdColor[tileId & 0x3];
+    GBNonCBGColors *palette = paletteIndex == 0 ? ppu->objp0IdColor : ppu->objp1IdColor;
+    GBNonCBGColors color = palette[tileId & 0x3];
     switch (color) {
         case GBNonCBGColorWhite:
             return 0xFFFFFF00;
@@ -540,6 +543,7 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
 
         if (color != GB_Tile_pixel_0) {
             device->ppu->objPriorities[frameIndex] = (attributes & 0x80) ? false : true;
+            device->ppu->objPalettes0[frameIndex] = (attributes & 0x10) == 0 ? true : false;
             device->ppu->frameBuffer[GBObjectFrameBuffer][frameIndex] = color;
             break;
         }
@@ -563,6 +567,9 @@ void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
         int fetchToPerform = cycles;
         for (int i = 0; i < fetchToPerform; i++) {
             int scanX = ppu->clock + i;
+            if (scanX >= 160) {
+                break;
+            }
             GB_updateBackgroundPixel(device, ppu->line, scanX);
             GB_updateWindowPixel(device, ppu->line, scanX);
             GB_updateObjectPixel(device, ppu->line, scanX);
@@ -605,10 +612,11 @@ uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
         GB_tile_pixel_value bgColorId = ppu->frameBuffer[GBBackgroundFrameBuffer][i];
         GB_tile_pixel_value objColorId = ppu->frameBuffer[GBObjectFrameBuffer][i];
         bool objPriority = ppu->objPriorities[i];
+        int palette = ppu->objPalettes0[i] ? 0 : 1;
 
         uint32_t color;
         if (objColorId != GB_Tile_pixel_0 && (objPriority ||  bgColorId == GB_Tile_pixel_0)) {
-            color = GB_ppu_getObjPaletteColor(device->ppu, objColorId);
+            color = GB_ppu_getObjPaletteColor(device->ppu, objColorId, palette);
         } else {
             color = GB_ppu_getBackgroundPaletteColor(device->ppu, bgColorId);
         }
