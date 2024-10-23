@@ -1,4 +1,7 @@
 #import "GameRenderer.h"
+#include "core/RomMBC.h"
+#include "core/MMU.h"
+#include <stdlib.h>
 #include <Foundation/Foundation.h>
 #import "GBAudioClient.h"
 #import <CoreGraphics/CoreGraphics.h>
@@ -30,6 +33,7 @@ u_int64_t stepCounter = 0;
     NSUInteger _frameNum;
     id<MTLTexture> _texture;
     GB_device* _gameboydevice;
+    GBRomMBC* _romCartdrige;
     GBAudioClient *_audioClient;
     NSString* _romPath;
 }
@@ -42,7 +46,13 @@ u_int64_t stepCounter = 0;
 
     _romPath = romPath;
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, [romPath cStringUsingEncoding:NSASCIIStringEncoding]);
+    _romCartdrige = GBNewRom([romPath cStringUsingEncoding:NSASCIIStringEncoding]);
+    GBCartridgeDef *cartDef = malloc(sizeof(GBCartridgeDef));
+    cartDef->sender = _romCartdrige;
+    cartDef->read = (GBCartrigeReadFunc)GBReadFromRom;
+    cartDef->write = (GBCartridgeWriteFunc)GBWriteToRom;
+    GB_emulationLoadCartdrige(_gameboydevice, cartDef);
+
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
     _frameNum = 0;
@@ -250,6 +260,7 @@ u_int64_t stepCounter = 0;
 
 -(void)disposeRessources {
     [_audioClient stop];
+    GBRomSave(_romCartdrige);
 }
 
 @end

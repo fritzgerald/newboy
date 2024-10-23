@@ -5,6 +5,7 @@
 #include "APU.h"
 #include "Helper.h"
 #include "Bios.h"
+#include "Cartridge.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,26 +25,22 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
         case 0x0000:
             if(mem->in_bios) {
                 if(addr >= 0x100) {
-                    unsigned char txt = mem->rom[addr];
+                    unsigned char txt = mem->cartridge->read(device, mem->cartridge->sender, addr);
                     return txt;
                 }
                 return  mem->bios[addr];
             } else {
-                return mem->rom[addr];
+                return mem->cartridge->read(device, mem->cartridge->sender, addr);
             }
         case 0x1000: case 0x2000: case 0x3000:
-            return mem->rom[addr];
         case 0x4000: case 0x5000: case 0x6000: case 0x7000:
-            return mem->rom[(0x4000 * bankIndex) + (addr & 0x3FFF)]; //TODO: handle ROM Bank switch here
+            return mem->cartridge->read(device, mem->cartridge->sender, addr);
         // MARK: VRAM
         case 0x8000: case 0x9000:
             return GB_deviceVramRead(device, addr);
         // MARK: External RAM
         case 0xA000: case 0xB000:
-            if (mem->eRam && mem->eRam) {
-                return mem->eRam[(0x2000 * mem->ramBankIndex) + addr & 0x1FFF]; // TODO: handle Switch
-            }
-            return 0;
+            return mem->cartridge->read(device, mem->cartridge->sender, addr);
         // MARK: Work RAM and echo
         case 0xC000: case 0xD000: case 0xE000:
             return mem->wRam[addr & 0x1FFF];
@@ -109,25 +106,15 @@ void GB_device_OAM_DMA(GB_device* device, Byte data) {
 void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
     GB_mmu* mem = device->mmu;
     switch (addr & 0xF000) {
-        case 0x0000: case 0x1000: 
-            mem->ramEnabled = value == 0x0A ? true : false;
-            break;
-        case 0x2000: case 0x3000: 
-            mem->romBankIndex = value & 0x1F;
-            break;
-        case 0x4000: case 0x5000: 
-            mem->ramBankIndex = value & 0x03;
-            break;
-        case 0x6000: case 0x7000:
-            mem->useAdvanceBankMode = value & 0x1 ? true : false;
+        case 0x0000: case 0x1000: case 0x2000: case 0x3000: 
+        case 0x4000: case 0x5000: case 0x6000: case 0x7000:
+            mem->cartridge->write(device, mem->cartridge->sender, addr, value);
             break; // TODO: Handle MBCs to define behavior
         case 0x8000: case 0x9000:
             GB_deviceVramWrite(device, addr, value);
             break;
         case 0xA000: case 0xB000:
-            if(mem->ramEnabled && mem->eRam) {
-                mem->eRam[addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
-            }
+            mem->cartridge->write(device, mem->cartridge->sender, addr, value);
             break;
         // Work RAM and echo
         case 0xC000: case 0xD000: case 0xE000:
@@ -184,101 +171,6 @@ void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
 void GB_deviceWriteWord(GB_device* device, Word addr, Word value) {
     GB_deviceWriteByte(device, addr, value & 0xff);
     GB_deviceWriteByte(device, addr + 1, value >> 8);
-}
-
-u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize) {
-    switch (rawRomSize)
-    {
-    case 0:
-        return 0x7fff; // 32 Kib
-    case 1:
-        return 0x7fff * 2; // 64 Kib;
-    case 2:
-        return 0x7fff * 4; // 128 Kib;
-    case 3:
-        return 0x7fff * 8; // 256 Kib;
-    case 4:
-        return 0x7fff * 16; // 512 Kib;
-    case 5:
-        return 0x7fff * 32; // 1 Mib;
-    case 6:
-        return 0x7fff * 64; // 2 Mib;
-    case 7:
-        return 0x7fff * 128; // 4 Mib;
-    case 8:
-        return 0x7fff * 256; // 8 Mib;
-    default:
-        return 0x7fff; // 32 Kib
-    };
-}
-
-u_int32_t GB_cartridgeRamSize(u_int8_t rawRamSize) {
-    switch (rawRamSize)
-    {
-    case 2:
-        return 0x2000; // 8Kib
-    case 3:
-        return 0x8000; // 32Kib
-    case 4:
-        return 0x20000; // 128Kib
-    case 5:
-        return 0x10000; // 64Kib
-    default:
-        return 0; // No RAM
-    };
-}
-
-int GB_deviceloadRom(GB_device* device, const char* filePath) {
-    FILE *cartridgeFile = fopen(filePath, "rb");
-    if(cartridgeFile == NULL) {
-        fclose(cartridgeFile);
-        return GB_CARTRIDGE_FILE_ERROR;
-    }
-
-    if(fseek(cartridgeFile, GB_CARTRIDGE_NAME, SEEK_SET) != 0) {
-        fclose(cartridgeFile);
-        return GB_CARTRIDGE_FILE_ERROR;
-    }
-    char title[0x10];
-    fread(title, 1, 0x10, cartridgeFile);
-    if(fseek(cartridgeFile, GB_CARTRIDGE_TYPE, SEEK_SET) != 0) {
-        fclose(cartridgeFile);
-        return GB_CARTRIDGE_FILE_ERROR;
-    }
-    u_int8_t rawCartType;
-    fread(&rawCartType, 1, 1, cartridgeFile);
-    if(fseek(cartridgeFile, GB_CARTRIDGE_ROM_SIZE, SEEK_SET) != 0) {
-        fclose(cartridgeFile);
-        return GB_CARTRIDGE_FILE_ERROR;
-    }
-
-    u_int8_t rawRomSize;
-    fread(&rawRomSize, 1, 1, cartridgeFile);
-    u_int32_t romSize = GB_cartridgeRomSize(rawRomSize);
-    if(fseek(cartridgeFile, GB_CARTRIDGE_RAM_SIZE, SEEK_SET) != 0) {
-        fclose(cartridgeFile);
-        return GB_CARTRIDGE_FILE_ERROR;
-    }
-    u_int8_t rawRamSize;
-    fread(&rawRamSize, 1, 1, cartridgeFile);
-    u_int32_t ramSize = GB_cartridgeRamSize(rawRamSize);
-
-    device->mmu->rom = (u_int8_t *) malloc(romSize);
-
-    fseek(cartridgeFile, 0, SEEK_SET);
-    fread(device->mmu->rom, romSize, 1, cartridgeFile);
-
-    // Handle eRam sizes
-    if (ramSize > 0) {
-        device->mmu->eRam = (u_int8_t *) malloc(ramSize);
-        memset(device->mmu->eRam, 0, ramSize);
-    } else {
-        device->mmu->eRam = 0;
-    }
-    device->mmu->cartridgeType = rawCartType;
-
-    fclose(cartridgeFile);
-    return GB_CARTRIDGE_SUCCESS;
 }
 
 Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
@@ -463,4 +355,6 @@ int32_t GBProcessMemEvents(GB_device* device, Byte cycles) {
  	return device->mmu->nextEvent;
 }
 
-//GBJoypadState GBJoypadStateDefault() { return (GBJoypadState) { false, false, false, false, false, false, false, false }; }
+void GB_emulationLoadCartdrige(GB_device* device, GBCartridgeDef* cartridge) {
+    device->mmu->cartridge = cartridge;
+}

@@ -33,3 +33,6 @@ typedef struct GBAPU_s GBApu;
 
 struct GBSample_s;
 typedef struct GBSample_s GBSample;
+
+struct GBRomMBC_s;
+typedef struct GBRomMBC_s GBRomMBC;
