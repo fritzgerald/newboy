@@ -97,6 +97,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
 
 void GB_ClearFrame(GB_device* device) {
     memset(device->ppu->objPriorities, 0, 160 * 144);
+    memset(device->ppu->objPalettes0, 0, 160 * 144);
     memset(device->ppu->frameBuffer[GBObjectFrameBuffer], 0, sizeof(GBObjectFrameBuffer) * 160 * 144);
 }
 
@@ -310,7 +311,8 @@ void GB_deviceResetPPU(GB_device* device) {
     memset(ppu->oam, 0, 0xA0);
     memset(ppu->tiles, 0, 384 * 8 * 8);
 
-   memset(ppu->objPriorities, 0, 160 * 144);
+    memset(ppu->objPriorities, 0, 160 * 144);
+    memset(ppu->objPalettes0, 0, 160 * 144);
 
     unsigned short clock = 0;
     ppu->lineMode = GB_PPU_MODE_HBLANK;
@@ -380,9 +382,10 @@ unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value t
     }
 }
 
-unsigned int GB_ppu_getObjPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId) {
+unsigned int GB_ppu_getObjPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId, int paletteIndex) {
     // TODO: handle CGB
-    GBNonCBGColors color = ppu->objp0IdColor[tileId & 0x3];
+    GBNonCBGColors *palette = paletteIndex == 0 ? ppu->objp0IdColor : ppu->objp1IdColor;
+    GBNonCBGColors color = palette[tileId & 0x3];
     switch (color) {
         case GBNonCBGColorWhite:
             return 0xFFFFFF00;
@@ -455,20 +458,16 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
 void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
     if (device->ppu->isWindowEnabled == false) {
         return;
-    } else if (xScan + 7 < device->ppu->windowX || line < device->ppu->windowY) {
+    } else if (xScan < (device->ppu->windowX - 7) || line < device->ppu->windowY) {
         return;
     }
 
-    if (line == 0) {
-        line = line;
-    }
-
     uint32_t frameIndex = ((uint32_t)line * 160) + xScan;
-    Word scx = device->ppu->windowX;
+    Word scx = device->ppu->windowX - 7;
     Word scy = device->ppu->windowY;
 
-    u_int32_t pixelX = (xScan  + 7) - scx;
-    u_int32_t pixelY = line + scy;
+    u_int32_t pixelX = xScan - scx;
+    u_int32_t pixelY = line - scy;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;
@@ -491,27 +490,42 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
     Byte objHeight = device->ppu->objSize == GB_tile_bit_value_0 ? 8 : 16;
     
     for (int index = 0; index < 0xA0; index += 4) {
-        Byte yPos = device->ppu->oam[index] - 16;
-        Byte xPos = device->ppu->oam[index + 1] - 8;
+        int16_t yPos = device->ppu->oam[index] - 16;
+        int16_t xPos = device->ppu->oam[index + 1] - 8;
 
-        Byte yBottom = yPos + objHeight;
-        Byte xRight = xPos + 8;
-        if (yBottom <= line || yPos > line || xRight <= xScan || xPos > xScan) {
+        int16_t yBottom = yPos + objHeight;
+        int16_t xRight = xPos + 8;
+        if (yBottom <= line || xRight <= xScan || yPos > line || xPos  > xScan) {
             // object outside vertical draw area
             continue;
         }
-        Byte tileIndex = device->ppu->oam[index + 2];
-        Byte attributes = device->ppu->oam[index + 3];
-
-
-        Byte realTileIdx = tileIndex;
-        if (device->ppu->objSize == GB_tile_bit_value_0) {
-            realTileIdx = ((line - yPos) > 8) ? tileIndex | 0x01 : tileIndex & 0xFE;
-        }
+        int16_t tileIndex = device->ppu->oam[index + 2];
+        int16_t attributes = device->ppu->oam[index + 3];
 
         uint32_t column = (xScan - xPos) % 8;
         uint32_t row  = (line - yPos) % 8;
 
+        if(objHeight == 16) {
+            if (line >= (yPos + 8)) { // obj is 16 pixel long
+                if (attributes & 0x40) { // flip y
+                    // force selection of first tile
+                    tileIndex &= 0xFE;
+                } else {
+                    // select the second tile 
+                    tileIndex |= 0x1;
+                }
+                
+            } else {
+                if (attributes & 0x40) { // flip y
+                    // select the second tile 
+                    tileIndex |= 0x1;
+                } else {
+                    // force selection of first tile
+                    tileIndex &= 0xFE;
+                }
+            }
+        }
+        
         if (attributes & 0x20) { // flip x
             column = 7 - column;
         }
@@ -522,6 +536,7 @@ void GB_updateObjectPixel(GB_device* device, Byte line, Byte xScan) {
 
         if (color != GB_Tile_pixel_0) {
             device->ppu->objPriorities[frameIndex] = (attributes & 0x80) ? false : true;
+            device->ppu->objPalettes0[frameIndex] = (attributes & 0x10) == 0 ? true : false;
             device->ppu->frameBuffer[GBObjectFrameBuffer][frameIndex] = color;
             break;
         }
@@ -543,11 +558,15 @@ void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
     }
     if(ppu->clock < 160) {
         int fetchToPerform = cycles;
+        int scanX = ppu->clock;
         for (int i = 0; i < fetchToPerform; i++) {
-            int scanX = ppu->clock + i;
+            if (scanX >= 160) {
+                break;
+            }
             GB_updateBackgroundPixel(device, ppu->line, scanX);
             GB_updateWindowPixel(device, ppu->line, scanX);
             GB_updateObjectPixel(device, ppu->line, scanX);
+            scanX = ppu->clock + i;
             //printf("finished rendering scanX %d\n", scanX);
         }
     }
@@ -562,17 +581,17 @@ uint16_t _GB_tileindexWithOffset(GB_device* device, Word offset, bool isWindow) 
     if(isWindow == false) {
         startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
     } else {
-        startAddr = (device->ppu->bgTileArea == GB_tile_bit_value_0) ? 0x9C00 : 0x9800;
+        startAddr = (device->ppu->windowTileMap == GB_tile_bit_value_0) ? 0x9800 : 0x9C00;
     }
 
+    uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
     if (device->ppu->bgWinTileArea == GB_tile_bit_value_0) {
-        uint8_t tileIdxData = GB_deviceReadByte(device, startAddr + offset);
         if (tileIdxData >= 128) {
             return tileIdxData;
         }
         return 256 + tileIdxData;
     }
-    return GB_deviceReadByte(device, startAddr + offset);
+    return tileIdxData;
 }
 
 uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
@@ -587,10 +606,11 @@ uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
         GB_tile_pixel_value bgColorId = ppu->frameBuffer[GBBackgroundFrameBuffer][i];
         GB_tile_pixel_value objColorId = ppu->frameBuffer[GBObjectFrameBuffer][i];
         bool objPriority = ppu->objPriorities[i];
+        int palette = ppu->objPalettes0[i] ? 0 : 1;
 
         uint32_t color;
         if (objColorId != GB_Tile_pixel_0 && (objPriority ||  bgColorId == GB_Tile_pixel_0)) {
-            color = GB_ppu_getObjPaletteColor(device->ppu, objColorId);
+            color = GB_ppu_getObjPaletteColor(device->ppu, objColorId, palette);
         } else {
             color = GB_ppu_getBackgroundPaletteColor(device->ppu, bgColorId);
         }

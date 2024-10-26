@@ -5,6 +5,7 @@
 #include "MMU.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include "Helper.h"
 
 #define FLAG_ZERO                 0x80
 #define FLAG_SUB                  0x40
@@ -162,7 +163,8 @@ Byte ins_stop(GB_device* device) {
     device->cpu->is_halted = true;
     return 4; 
 }
-Byte ins_bad_ins(GB_device* device) { 
+Byte ins_bad_ins(GB_device* device) {
+    GBprintf("Bad instruction: %04x\n", device->cpu->registers.pc);
     device->cpu->is_halted = true;
     GB_emulationAdvance(device, 16);
     return 20; 
@@ -1686,7 +1688,6 @@ void _GB_handle_interrupt(GB_device* device) {
     } else if (true == device->cpu->is_halted) {
         // restart CPU
         device->cpu->is_halted = false;
-        return;
     }
 
     device->cpu->IME = false;
@@ -1736,12 +1737,8 @@ Byte GB_deviceCpuStep(GB_device* device) {
         // if the cpu is halted no operation can be performed exept interups
         return 4;
     }
-
-    // printf("executing instruction 0x%02x; PC=0x%04x \n", ins_code, cpu->registers.pc);
-    if (cpu->registers.pc == 0xc44d) {
-        cpu->registers.pc = cpu->registers.pc;
-    }
     
+    //GBprintf("executing Instruction: %02x; pc: %04x\n", ins_code, cpu->registers.pc);
     Byte cycles = (*insToExec)(device);
 
     if(cpu->registers.pc == GB_PC_START) {

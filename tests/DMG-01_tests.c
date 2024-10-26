@@ -7,6 +7,27 @@
 #include <strings.h>
 #include "testHelper.h"
 
+int test_rom_files(const char* basePath, char ** romFiles, u_int32_t* crcs, u_int64_t* steps, int numberOfTests) {
+    int fails = 0;
+    for (int i = 0; i < numberOfTests; i++) {
+        char* romName = romFiles[i];
+        u_int64_t romCrcs = crcs[i];
+        u_int64_t romSteps = steps[i];
+        char romPath[150];
+        strcpy(romPath, basePath);
+        strcat(romPath, romName);
+
+        int result = testRomWithCRC(romPath, romSteps, romCrcs);
+        if (result == GB_TEST_OK) {
+            printf("✅ %s succeed\n", romName);
+        } else {
+            printf("⛔️ %s failed\n", romName);
+            fails++;
+        }
+    }
+    return fails;
+}
+
 int test_dmg_sound() {
     char* testRoms[] = {
         "01-registers.gb", 
@@ -23,18 +44,18 @@ int test_dmg_sound() {
         "12-wave write while on.gb",
     };
     u_int32_t crcs[] = {
-        0xffffc95c, 
-        0xffff5938,
-        0xffffce8c,
-        0xffffe73f,
-        0xffff0cee,
-        0xffff9a86,
-        0xffffdc70,
-        0xffffc360,
-        0xffffa1c9,
-        0xffff1d11,
-        0xffff9b5a,
-        0xffff8b79,
+        0xfffe93f8, 
+        0xfffe9389,
+        0xfffe9335,
+        0xfffe949d,
+        0xfffe9308,
+        0xfffe821c,
+        0xfffe91af,
+        0xfffe8fea,
+        0xfffe6d97,
+        0xfffe68f6,
+        0xfffe92db,
+        0xfffe692f,
     };
     u_int64_t steps[] = {
         0x29cccc, 
@@ -51,38 +72,56 @@ int test_dmg_sound() {
         0x41f7d4,
     };
 
-    int fails = 0;
-    for (int i = 0; i < 12; i++) {
-        char* romName = testRoms[i];
-        u_int64_t romCrcs = crcs[i];
-        u_int64_t romSteps = steps[i];
-        char romPath[150];
-        strcpy(romPath, "testroms/dmg_sound/rom_singles/");
-        strcat(romPath, romName);
+    return test_rom_files("testroms/dmg_sound/rom_singles/", testRoms, crcs, steps, 12);
+}
 
-        int result = testRomWithCRC(romPath, romSteps, romCrcs);
-        if (result == GB_TEST_OK) {
-            printf("✅ %s succeed\n", romName);
-        } else {
-            printf("⛔️ %s failed\n", romName);
-            fails++;
-        }
-    }
-    return fails;
+int test_mem_timing() {
+    char* testRoms[] = {
+        "01-read_timing.gb",
+        "02-write_timing.gb",
+        "03-modify_timing.gb"
+    };
+
+    u_int32_t crcs[] = {
+        0xfffe9377,
+        0xfffe9356,
+        0xfffe92e1
+
+    };
+    u_int64_t steps[] = {
+        0x271f70, 
+        0x26c075,
+        0x272895
+    };
+    return test_rom_files("testroms/mem_timing/rom_singles/", testRoms, crcs, steps, 3);
 }
 
 int main(int argc, const char * argv[]) {
-    printf("----------------------------\n");
-    printf("Testing DMG sound roms\n");
-    printf("----------------------------\n");
-    int failTests = test_dmg_sound();
+    int (*testFunc[]) (void) = {
+        test_dmg_sound,
+        test_mem_timing
+    };
+    char* tesNames[] = {
+        "DMG sound",
+        "Mem timing"
+    };
 
-    printf("----------------------------\n");
-    if (failTests == 0) {
-        printf("✅ test_dmg_sound succeed\n");
-    } else {
-        printf("⛔️ test_dmg_sound failed\n");
+    int fails = 0;
+    int testLen = 2;
+    for (int i = 0; i < testLen; i++) {
+        printf("----------------------------\n");
+        printf("Testing %s roms\n", tesNames[i]);
+        printf("----------------------------\n");
+        int failTests = testFunc[i]();
+
+        printf("----------------------------\n");
+        if (failTests == 0) {
+            printf("✅ tests %s succeed\n", tesNames[i]);
+        } else {
+            printf("⛔️ test %s failed\n", tesNames[i]);
+        }
+        fails += failTests;
     }
     printf("----------------------------\n");
-    return 0;
+    return fails;
 }

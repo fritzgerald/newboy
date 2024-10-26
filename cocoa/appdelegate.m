@@ -1,5 +1,4 @@
 #import "appdelegate.h"
-#include "cocoa/GBViewController.h"
 #include <MacTypes.h>
 #include <AppKit/AppKit.h>
 #include <Foundation/Foundation.h>

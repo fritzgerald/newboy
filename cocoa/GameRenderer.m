@@ -1,4 +1,7 @@
 #import "GameRenderer.h"
+#include "core/RomMBC.h"
+#include "core/MMU.h"
+#include <stdlib.h>
 #include <Foundation/Foundation.h>
 #import "GBAudioClient.h"
 #import <CoreGraphics/CoreGraphics.h>
@@ -8,7 +11,7 @@
 #import "GBShaderTypes.h"
 #include "core/Newboy.h"
 
-uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride);
+uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride);
 u_int64_t stepCounter = 0;
 
 
@@ -30,6 +33,7 @@ u_int64_t stepCounter = 0;
     NSUInteger _frameNum;
     id<MTLTexture> _texture;
     GB_device* _gameboydevice;
+    GBRomMBC* _romCartdrige;
     GBAudioClient *_audioClient;
     NSString* _romPath;
 }
@@ -42,7 +46,13 @@ u_int64_t stepCounter = 0;
 
     _romPath = romPath;
     _gameboydevice = GB_newDevice();
-    GB_deviceloadRom(_gameboydevice, [romPath cStringUsingEncoding:NSASCIIStringEncoding]);
+    _romCartdrige = GBNewRom([romPath cStringUsingEncoding:NSASCIIStringEncoding]);
+    GBCartridgeDef *cartDef = malloc(sizeof(GBCartridgeDef));
+    cartDef->sender = _romCartdrige;
+    cartDef->read = (GBCartrigeReadFunc)GBReadFromRom;
+    cartDef->write = (GBCartridgeWriteFunc)GBWriteToRom;
+    GB_emulationLoadCartdrige(_gameboydevice, cartDef);
+
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 
     _frameNum = 0;
@@ -239,35 +249,23 @@ u_int64_t stepCounter = 0;
 }
 
 -(void)printScreenCRC {
-    uint8_t crc1 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
-    uint8_t crc2 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 2);
-    uint8_t crc3 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 1, 2);
-    uint8_t crc4 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBObjectFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
+    uint32_t crc = checksum((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
 
-    NSLog(@" CRC: %02x%02x%02x%02x", crc4, crc3, crc2, crc1);
+    NSLog(@" CRC: %04x", crc);
     NSLog(@"Steps: %llx", stepCounter);
 }
 
 -(void)disposeRessources {
     [_audioClient stop];
+    GBRomSave(_romCartdrige);
 }
 
 @end
 
-uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride) {
-    if (data == NULL) {
-        return 0;
-    }
-    uint8_t coefficient = 0xb2;
-
-    uint8_t remainder = 0;
+uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride) {
+    uint32_t remainder = 0;
     for (int byte = start; byte < nBytes; byte += stride) {
-        remainder ^= data[byte];
-        // Perform modulo-2 division, a bit at a time.
-        for (uint8_t i = 0; i < 8; i++) {
-            // Try to divide the current data bit.
-            remainder = ((remainder & 0x1) != 0) ? (remainder >> 1) ^ coefficient : (remainder >> 1);
-        }
+        remainder = remainder - data[byte] - 1;
     }
-    return remainder ^ 0xFF;
+    return remainder;
 }

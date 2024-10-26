@@ -4,14 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define GB_CARTRIDGE_SUCCESS    0
-#define GB_CARTRIDGE_FILE_ERROR -1
-
-#define GB_CARTRIDGE_NAME     0x0134
-#define GB_CARTRIDGE_TYPE     0x0147
-#define GB_CARTRIDGE_ROM_SIZE 0x0148
-#define GB_CARTRIDGE_RAM_SIZE 0x0149
-
 typedef enum {
     GBTimaClockCycles256,
     GBTimaClockCycles4,
@@ -43,14 +35,24 @@ struct GBJoypadState_s {
 
 typedef struct GBJoypadState_s GBJoypadState;
 
+typedef Byte (*GBCartrigeReadFunc)(GB_device *device, void* sender, Word addr);
+typedef void (*GBCartridgeWriteFunc)(GB_device* device, void* sender, Word addr, Byte value);
+
+struct GBCartridgeDef_s {
+    void* sender;
+    GBCartrigeReadFunc read;
+    GBCartridgeWriteFunc write;
+};
+typedef struct GBCartridgeDef_s GBCartridgeDef;
+
 struct GB_mmu_s {
     bool in_bios;
 
     Byte bios[0x100];
-    Byte* rom; // TODO: handle multiple rom sizes
-    Byte eRam[0x2000];
     Byte wRam[0x2000];
     Byte zRam[0x80];
+
+    GBCartridgeDef* cartridge;
 
     Byte sb;
     Byte sc;
@@ -63,12 +65,20 @@ struct GB_mmu_s {
     Byte interruptEnable;
     Byte interruptRequest;
     Byte KEY1;
+    Byte romBankIndex;
+    Byte ramBankIndex;
+    bool useAdvanceBankMode;
+    bool ramEnabled;
+
     GBTimaState timaStatus;
     uint32_t timaCounter;
 
     bool joypadDpadSelected;
     bool joypadButtonSelected;
     GBJoypadState joypadState;
+
+    //Rom data
+    Byte cartridgeType;
 
     // WIP
     int32_t nextEvent;
@@ -82,8 +92,9 @@ Byte GB_deviceReadByte(GB_device*, Word);
 Word GB_deviceReadWord(GB_device*, Word);
 void GB_deviceWriteByte(GB_device*, Word, Byte);
 void GB_deviceWriteWord(GB_device*, Word, Word);
-int  GB_deviceloadRom(GB_device* device, const char* filePath);
 void GB_deviceResetMMU(GB_device* device);
 void GB_interrupt_request(GB_device* device, Byte ir);
 void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad);
 int32_t GBProcessMemEvents(GB_device* device, Byte cycles);
+void GBLoadBios(GB_device* device);
+void GB_emulationLoadCartdrige(GB_device* device, GBCartridgeDef* cartridge);
