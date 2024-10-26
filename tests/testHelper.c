@@ -2,6 +2,8 @@
 #include "core/Device.h"
 #include "core/PPU.h"
 #include "core/MMU.h"
+#include "core/RomMBC.h"
+#include "core/definitions.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -55,7 +57,14 @@ uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride) {
 int testRomWithCRC(char* romPath, u_int64_t steps, u_int32_t crcCheck) {
 
     GB_device* device = GB_newDevice();
-    GB_deviceloadRom(device, romPath);
+
+    GBRomMBC* rom = GBNewRom(romPath);
+    GBCartridgeDef *cartDef = malloc(sizeof(GBCartridgeDef));
+    cartDef->sender = rom;
+    cartDef->read = (GBCartrigeReadFunc)GBReadFromRom;
+    cartDef->write = (GBCartridgeWriteFunc)GBWriteToRom;
+    GB_emulationLoadCartdrige(device, cartDef);
+
     u_int64_t testlen = steps;
     while (testlen != 0){
         testlen--;
