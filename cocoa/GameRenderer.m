@@ -11,7 +11,7 @@
 #import "GBShaderTypes.h"
 #include "core/Newboy.h"
 
-uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride);
+uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride);
 u_int64_t stepCounter = 0;
 
 
@@ -249,12 +249,9 @@ u_int64_t stepCounter = 0;
 }
 
 -(void)printScreenCRC {
-    uint8_t crc1 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
-    uint8_t crc2 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 2);
-    uint8_t crc3 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 1, 2);
-    uint8_t crc4 = _crc8((uint8_t *)_gameboydevice->ppu->frameBuffer[GBObjectFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
+    uint32_t crc = checksum((uint8_t *)_gameboydevice->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
 
-    NSLog(@" CRC: %02x%02x%02x%02x", crc4, crc3, crc2, crc1);
+    NSLog(@" CRC: %04x", crc);
     NSLog(@"Steps: %llx", stepCounter);
 }
 
@@ -265,20 +262,10 @@ u_int64_t stepCounter = 0;
 
 @end
 
-uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride) {
-    if (data == NULL) {
-        return 0;
-    }
-    uint8_t coefficient = 0xb2;
-
-    uint8_t remainder = 0;
+uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride) {
+    uint32_t remainder = 0;
     for (int byte = start; byte < nBytes; byte += stride) {
-        remainder ^= data[byte];
-        // Perform modulo-2 division, a bit at a time.
-        for (uint8_t i = 0; i < 8; i++) {
-            // Try to divide the current data bit.
-            remainder = ((remainder & 0x1) != 0) ? (remainder >> 1) ^ coefficient : (remainder >> 1);
-        }
+        remainder = remainder - data[byte] - 1;
     }
-    return remainder ^ 0xFF;
+    return remainder;
 }

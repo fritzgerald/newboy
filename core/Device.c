@@ -99,7 +99,7 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
             }
         }
 
-        Byte trackedBit = 0x10; // TODO: double speed mode 0x20?
+        // TODO: double speed mode 0x20?
         if (triggers & 0x400) {
              GBApuDiv(device);
         }
