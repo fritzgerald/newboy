@@ -558,14 +558,15 @@ void GB_RenderProcessFrame(GB_device* device, Byte cycles) {
     }
     if(ppu->clock < 160) {
         int fetchToPerform = cycles;
+        int scanX = ppu->clock;
         for (int i = 0; i < fetchToPerform; i++) {
-            int scanX = ppu->clock + i;
             if (scanX >= 160) {
                 break;
             }
             GB_updateBackgroundPixel(device, ppu->line, scanX);
             GB_updateWindowPixel(device, ppu->line, scanX);
             GB_updateObjectPixel(device, ppu->line, scanX);
+            scanX = ppu->clock + i;
             //printf("finished rendering scanX %d\n", scanX);
         }
     }
