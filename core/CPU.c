@@ -1688,7 +1688,6 @@ void _GB_handle_interrupt(GB_device* device) {
     } else if (true == device->cpu->is_halted) {
         // restart CPU
         device->cpu->is_halted = false;
-        return;
     }
 
     device->cpu->IME = false;
