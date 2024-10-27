@@ -44,7 +44,7 @@
     [super viewDidMoveToWindow];
 
     CADisplayLink *displayLink = [self displayLinkWithTarget:self selector:@selector(renderFrame:)];
-    displayLink.preferredFrameRateRange = CAFrameRateRangeMake(59, 60, 60);
+    displayLink.preferredFrameRateRange = CAFrameRateRangeMake(58, 59, 59);
     [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
 
     //[self setupCVDisplayLinkForScreen:self.window.screen];
