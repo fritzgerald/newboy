@@ -46,8 +46,10 @@ LDFLAGS += -Wl -framework AppKit -framework QuartzCore -framework Metal -framewo
 cocoaApp: $(ODIR)/NewBoy.app
 $(ODIR)/NewBoy.app: $(ODIR)/NewBoy.app/Contents/MacOS/NewBoy \
 					 cocoa/Info.plist \
-					 $(ODIR)/NewBoy.app/Contents/Resources/default.metallib
+					 $(ODIR)/NewBoy.app/Contents/Resources/default.metallib \
+					 $(shell ls cocoa/*.icns)
 	cp cocoa/Info.plist $(ODIR)/NewBoy.app/Contents/Info.plist
+	cp Cocoa/*.icns $(ODIR)/NewBoy.app/Contents/Resources/
 	$(CODESIGN) $@
 
 

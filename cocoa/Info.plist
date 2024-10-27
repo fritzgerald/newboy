@@ -26,5 +26,7 @@
 	<string>Copyright © 2016 Apple Inc. All rights reserved.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>CFBundleIconFile</key>
+	<string>newBoy.icns</string>
 </dict>
 </plist>
