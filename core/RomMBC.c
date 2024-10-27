@@ -380,6 +380,9 @@ Byte GBLoadRamFromFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
 }
 
 Byte GBSaveRamForFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
+    if (ramSize == 0 || ram == NULL) {
+        GB_CARTRIDGE_SUCCESS;
+    }
     char* saveFilePath = GBRAMSavePath(filePath);
     FILE *ramFile = fopen(saveFilePath, "wb");
     if (ramFile == NULL) {
