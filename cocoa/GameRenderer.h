@@ -5,6 +5,7 @@
 
 @interface GameRenderer: NSObject
 
+@property NSInteger frameRate;
 @property GBJoypadState joypad;
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device

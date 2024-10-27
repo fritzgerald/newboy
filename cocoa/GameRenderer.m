@@ -36,6 +36,8 @@ u_int64_t stepCounter = 0;
     GBRomMBC* _romCartdrige;
     GBAudioClient *_audioClient;
     NSString* _romPath;
+    CFTimeInterval _startTime;
+    NSInteger _frameCounter;
 }
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device
@@ -73,12 +75,18 @@ u_int64_t stepCounter = 0;
     [self createRenderPipeline:drawabklePixelFormat];
 
     [_audioClient start];
+    _startTime = CACurrentMediaTime();
 
     return self;
 }
 
 
 -(CGImageRef)renderFrame {
+    if ((CACurrentMediaTime() - _startTime) >= 1) {
+        _startTime = CACurrentMediaTime();
+        self.frameRate = _frameCounter;
+        _frameCounter = 0;
+    }
     int strIdx = 0;
     char console[100];
     while (_gameboydevice->ppu->frameReady == false){
@@ -86,6 +94,7 @@ u_int64_t stepCounter = 0;
         GB_emulationStep(_gameboydevice);
         stepCounter++;
     }
+    _frameCounter++;
     // TODO: Render Frame
     // Frame done
     _gameboydevice->ppu->frameReady = false;

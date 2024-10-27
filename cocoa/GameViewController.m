@@ -10,6 +10,8 @@
 
 @interface GameViewController() <MetalViewDelegate>
 
+@property(weak, nonatomic) NSTextField* debugTextField;
+
 @end
 
 @implementation GameViewController {
@@ -116,6 +118,22 @@
         }
         return nil;
     }];
+
+    NSTextField* textField = [[NSTextField alloc] initWithFrame:CGRectZero];
+    [textField setBezeled:NO];
+    [textField setDrawsBackground:NO];
+    [textField setEditable:NO];
+    [textField setSelectable:NO];
+    textField.translatesAutoresizingMaskIntoConstraints = NO;
+    [view addSubview: textField];
+    [NSLayoutConstraint activateConstraints:@[
+        [textField.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
+        [textField.topAnchor constraintEqualToAnchor:view.topAnchor]
+    ]];
+    self.debugTextField = textField;
+    textField.textColor = [NSColor redColor];
+    textField.stringValue = @"120 fps";
+
 }
 
 -(void)viewWillDisappear {
@@ -127,6 +145,7 @@
 - (void)renderToMetalLayer:(nonnull CAMetalLayer *)metalLayer {
     _renderer.joypad = joypad;
     [_renderer renderToMetalLayer: metalLayer];
+    _debugTextField.stringValue = [NSString stringWithFormat:@"%ld FPS", _renderer.frameRate];
 }
 
 - (void)drawableResize:(CGSize)size {
