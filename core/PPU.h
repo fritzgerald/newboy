@@ -1,7 +1,6 @@
 #include "definitions.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/_types/_u_int32_t.h>
 
 #pragma once
 
@@ -43,7 +42,7 @@ typedef enum {
 GBNonCBGColors GBNonCBGColors_value_from_int(int);
 
 struct GB_ppu_s {
-    u_int32_t clock;
+    uint32_t clock;
     GB_ppu_mode lineMode;
     // LY: current line being handled
     Byte line;

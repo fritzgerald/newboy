@@ -44,7 +44,7 @@ uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride) {
     return remainder;
 }
 
-int testRomWithCRC(char* romPath, u_int64_t steps, u_int32_t crcCheck) {
+int testRomWithCRC(char* romPath, uint64_t steps, uint32_t crcCheck) {
 
     GB_device* device = GB_newDevice();
 
@@ -55,13 +55,13 @@ int testRomWithCRC(char* romPath, u_int64_t steps, u_int32_t crcCheck) {
     cartDef->write = (GBCartridgeWriteFunc)GBWriteToRom;
     GB_emulationLoadCartdrige(device, cartDef);
 
-    u_int64_t testlen = steps;
+    uint64_t testlen = steps;
     while (testlen != 0){
         testlen--;
         GB_emulationStep(device);
     }
 
-    u_int32_t crc = checksum((uint8_t *)device->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
+    uint32_t crc = checksum((uint8_t *)device->ppu->frameBuffer[GBBackgroundFrameBuffer], sizeof(int32_t) * 160 * 144, 0, 1);
    
     GB_freeDevice(device);
     if (crc == crcCheck) {

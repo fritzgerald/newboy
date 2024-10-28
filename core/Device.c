@@ -76,18 +76,18 @@ void GB_updateDivCounter(GB_device* device, Byte cycles) {
     GB_mmu* mmu = device->mmu;
 
     // Update TIMA if enabled
-    u_int16_t timaMask[] = {0x80, 0x02, 0x8, 0x20};
+    uint16_t timaMask[] = {0x80, 0x02, 0x8, 0x20};
 
-    u_int16_t bitTracked = timaMask[mmu->timaClockCycles];
-    u_int16_t ticks = cycles / 4;
+    uint16_t bitTracked = timaMask[mmu->timaClockCycles];
+    uint16_t ticks = cycles / 4;
 
     Byte prevDiv = mmu->div;
     
     for (int i = 0; i < ticks; i++) {
 
         // update DIV register
-        u_int32_t newDiv = cpu->divCounter + 1;
-        u_int32_t triggers = cpu->divCounter & ~newDiv;
+        uint32_t newDiv = cpu->divCounter + 1;
+        uint32_t triggers = cpu->divCounter & ~newDiv;
 
         cpu->divCounter = newDiv;
         mmu->div = (cpu->divCounter >> 8);

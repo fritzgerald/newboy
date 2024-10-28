@@ -3,7 +3,6 @@
 #include "core/definitions.h"
 #include <Foundation/NSObjCRuntime.h>
 #import <Foundation/Foundation.h>
-#include <sys/_types/_u_int32_t.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import "core/APU.h"
 #import "core/Device.h"
@@ -31,7 +30,7 @@ void _GBOnSampleReadyBack(void* sender, GB_device *device, GBSample sample);
 @implementation GBAudioClient {
     AudioComponentInstance audioUnit;
     GBSample _audioBuffer[GB_AUDIO_BUFFER_SIZE];
-    u_int32_t _audioBufferPosition;
+    uint32_t _audioBufferPosition;
     NSCondition* _lock;
     UInt32 requestedFrames;
 }

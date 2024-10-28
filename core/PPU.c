@@ -9,7 +9,6 @@
 #include <string.h>
 #include <strings.h>
 #include <stdbool.h>
-#include <sys/_types/_u_int32_t.h>
 #include "CPU.h"
 
 #define CLOCK_INC 2
@@ -49,7 +48,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                         }
                     }
                 } else {
-                    u_int32_t newClock = ppu->clock + CLOCK_INC;
+                    uint32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
@@ -71,7 +70,7 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                         sendStatInterrupt = true;
                     }
                 } else {
-                    u_int32_t newClock = ppu->clock + CLOCK_INC;
+                    uint32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
@@ -80,13 +79,13 @@ void GB_devicePPUstep(GB_device* device, Byte cycle) {
                     ppu->clock = 0;
                     ppu->lineMode = GB_PPU_MODE_DRAW;
                 }  else {
-                    u_int32_t newClock = ppu->clock + CLOCK_INC;
+                    uint32_t newClock = ppu->clock + CLOCK_INC;
                     ppu->clock = newClock;
                 }
                 break;
             case GB_PPU_MODE_DRAW:
                 GB_RenderProcessFrame(device, cycle);
-                u_int32_t newClock = ppu->clock + CLOCK_INC;
+                uint32_t newClock = ppu->clock + CLOCK_INC;
                 ppu->clock = newClock;
         }
         if (sendStatInterrupt) {
@@ -442,8 +441,8 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     Word scx = device->ppu->scrollX;
     Word scy = device->ppu->scrollY;
 
-    u_int32_t pixelX = (xScan + scx) % 256;
-    u_int32_t pixelY = (line + scy) % 256;
+    uint32_t pixelX = (xScan + scx) % 256;
+    uint32_t pixelY = (line + scy) % 256;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;
@@ -466,8 +465,8 @@ void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
     Word scx = device->ppu->windowX - 7;
     Word scy = device->ppu->windowY;
 
-    u_int32_t pixelX = xScan - scx;
-    u_int32_t pixelY = line - scy;
+    uint32_t pixelX = xScan - scx;
+    uint32_t pixelY = line - scy;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
     uint32 bgPixelOffset = (tiley * 32) + tilex;

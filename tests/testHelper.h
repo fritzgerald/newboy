@@ -24,5 +24,5 @@ typedef struct GBTestSuite_s GBTestSuite;
 GBTestSuite* GBNewTestSuite(char* name, GBTestCase* test, int testsLen);
 // void GBAddTestCase(GBTestSuite* suite, GBTestCase test);
 
-int testRomWithCRC(char* romPath, u_int64_t steps, u_int32_t crcCheck);
+int testRomWithCRC(char* romPath, uint64_t steps, uint32_t crcCheck);
 uint8_t _crc8(uint8_t const *data, size_t nBytes, int start, int stride);

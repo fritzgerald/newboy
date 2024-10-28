@@ -32,8 +32,8 @@ struct GBRomMBC_s {
     bool isAdvanceBankModeEnabled;
     bool isRamEnabled;
     bool isMbc1M;
-    u_int32_t romSize;
-    u_int32_t ramSize;
+    uint32_t romSize;
+    uint32_t ramSize;
     Byte rtcRegister;
     time_t startTime;
     bool rtcTrigger;

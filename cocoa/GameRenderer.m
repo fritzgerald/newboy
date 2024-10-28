@@ -12,7 +12,7 @@
 #include "core/Newboy.h"
 
 uint32_t checksum(uint8_t const *data, size_t nBytes, int start, int stride);
-u_int64_t stepCounter = 0;
+uint64_t stepCounter = 0;
 
 
 @implementation GameRenderer

@@ -69,11 +69,11 @@ typedef enum {
 } GBEnvDirection;
 
 struct GBAPU_s {
-    u_int32_t clock;
-    u_int32_t sampleRate;
-    u_int16_t periodOnTrigger;
-    u_int16_t lfsrState;
-    u_int32_t waveReadclock;
+    uint32_t clock;
+    uint32_t sampleRate;
+    uint16_t periodOnTrigger;
+    uint16_t lfsrState;
+    uint32_t waveReadclock;
     bool ch1SweepEnabled;
     bool ch1StepZero;
     bool ch1NegModeUsed;
@@ -84,15 +84,15 @@ struct GBAPU_s {
     GBApuSampleReady sampleReadyCallback;
     void* sampleReadyCallbackSender;
     bool divBitUp;
-    u_int8_t periodSweepTimer;
-    u_int16_t envelopeSweepTimer[GBSoundChannelCount];
+    uint8_t periodSweepTimer;
+    uint16_t envelopeSweepTimer[GBSoundChannelCount];
     Byte envelopeVolume[GBSoundChannelCount];
     bool activeChannels[GBSoundChannelCount];
     short channelValues[GBSoundChannelCount];
-    u_int32_t channelClock[GBSoundChannelCount];
+    uint32_t channelClock[GBSoundChannelCount];
     Byte channelLen[GBSoundChannelCount];
     Byte channelSweepPace[GBSoundChannelCount];
-    u_int32_t channelClockDelay[GBSoundChannelCount];
+    uint32_t channelClockDelay[GBSoundChannelCount];
     Byte channelReaderCursors[GBSoundChannelCount];
     Byte data[0x30];
 };

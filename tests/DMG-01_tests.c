@@ -7,12 +7,12 @@
 #include <strings.h>
 #include "testHelper.h"
 
-int test_rom_files(const char* basePath, char ** romFiles, u_int32_t* crcs, u_int64_t* steps, int numberOfTests) {
+int test_rom_files(const char* basePath, char ** romFiles, uint32_t* crcs, uint64_t* steps, int numberOfTests) {
     int fails = 0;
     for (int i = 0; i < numberOfTests; i++) {
         char* romName = romFiles[i];
-        u_int64_t romCrcs = crcs[i];
-        u_int64_t romSteps = steps[i];
+        uint64_t romCrcs = crcs[i];
+        uint64_t romSteps = steps[i];
         char romPath[150];
         strcpy(romPath, basePath);
         strcat(romPath, romName);
@@ -43,7 +43,7 @@ int test_dmg_sound() {
         "11-regs after power.gb",
         "12-wave write while on.gb",
     };
-    u_int32_t crcs[] = {
+    uint32_t crcs[] = {
         0xfffe93f8, 
         0xfffe9389,
         0xfffe9335,
@@ -57,7 +57,7 @@ int test_dmg_sound() {
         0xfffe92db,
         0xfffe692f,
     };
-    u_int64_t steps[] = {
+    uint64_t steps[] = {
         0x29cccc, 
         0x6d87fb,
         0x8ea30e,
@@ -82,13 +82,13 @@ int test_mem_timing() {
         "03-modify_timing.gb"
     };
 
-    u_int32_t crcs[] = {
+    uint32_t crcs[] = {
         0xfffe9377,
         0xfffe9356,
         0xfffe92e1
 
     };
-    u_int64_t steps[] = {
+    uint64_t steps[] = {
         0x271f70, 
         0x26c075,
         0x272895

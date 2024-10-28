@@ -9,10 +9,10 @@
 #include <time.h>
 #include "Helper.h"
 
-u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize);
-u_int32_t GB_cartridgeRamSize(u_int8_t rawRamSize);
-Byte GBLoadRamFromFile(Byte* ram, u_int32_t ramSize, const char* filePath);
-Byte GBSaveRamForFile(Byte* ram, u_int32_t ramSize, const char* filePath);
+uint32_t GB_cartridgeRomSize(uint8_t rawRomSize);
+uint32_t GB_cartridgeRamSize(uint8_t rawRamSize);
+Byte GBLoadRamFromFile(Byte* ram, uint32_t ramSize, const char* filePath);
+Byte GBSaveRamForFile(Byte* ram, uint32_t ramSize, const char* filePath);
 GBMbcType GBMbcTypeFromCode(Byte cartridgeCode);
 
 Byte GBReadFromMBC1Rom(GB_device* device, GBRomMBC* cartridge, Word addr);
@@ -289,7 +289,7 @@ Byte GBLoadRomFromFile(GBRomMBC *cartridge, const char *filePath) {
         fclose(cartridgeFile);
         return GB_CARTRIDGE_FILE_ERROR;
     }
-    u_int8_t rawCartType;
+    uint8_t rawCartType;
     fread(&rawCartType, 1, 1, cartridgeFile);
     if(fseek(cartridgeFile, GB_CARTRIDGE_ROM_SIZE, SEEK_SET) != 0) {
         fclose(cartridgeFile);
@@ -299,18 +299,18 @@ Byte GBLoadRomFromFile(GBRomMBC *cartridge, const char *filePath) {
     cartridge->cartridgeTypeCode = rawCartType;
     cartridge->mbcType = GBMbcTypeFromCode(rawCartType);
 
-    u_int8_t rawRomSize;
+    uint8_t rawRomSize;
     fread(&rawRomSize, 1, 1, cartridgeFile);
-    u_int32_t romSize = GB_cartridgeRomSize(rawRomSize);
+    uint32_t romSize = GB_cartridgeRomSize(rawRomSize);
     if(fseek(cartridgeFile, GB_CARTRIDGE_RAM_SIZE, SEEK_SET) != 0) {
         fclose(cartridgeFile);
         return GB_CARTRIDGE_FILE_ERROR;
     }
-    u_int8_t rawRamSize;
+    uint8_t rawRamSize;
     fread(&rawRamSize, 1, 1, cartridgeFile);
-    u_int32_t ramSize = GB_cartridgeRamSize(rawRamSize);
+    uint32_t ramSize = GB_cartridgeRamSize(rawRamSize);
 
-    cartridge->rom = (u_int8_t *) malloc(romSize);
+    cartridge->rom = (uint8_t *) malloc(romSize);
 
     fseek(cartridgeFile, 0, SEEK_SET);
     fread(cartridge->rom, romSize, 1, cartridgeFile);
@@ -323,7 +323,7 @@ Byte GBLoadRomFromFile(GBRomMBC *cartridge, const char *filePath) {
         ramSize = 512;
     }
     if (ramSize > 0) {
-        cartridge->ram = (u_int8_t *) malloc(ramSize);
+        cartridge->ram = (uint8_t *) malloc(ramSize);
         memset(cartridge->ram, 0, ramSize);
     } else {
         cartridge->ram = NULL;
@@ -357,7 +357,7 @@ char* GBRAMSavePath(const char* filePath) {
     return saveFilePath;
 }
 
-Byte GBLoadRamFromFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
+Byte GBLoadRamFromFile(Byte* ram, uint32_t ramSize, const char* filePath) {
     char* saveFilePath = GBRAMSavePath(filePath);
 
     FILE *ramFile = fopen(saveFilePath, "rb");
@@ -367,7 +367,7 @@ Byte GBLoadRamFromFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
     }
 
     Byte* saveData = (Byte *) malloc(ramSize);
-    u_int32_t readBytes = fread(ram, ramSize, 1, ramFile);
+    uint32_t readBytes = fread(ram, ramSize, 1, ramFile);
     if (readBytes == 1) {
         // Make sure file size match RAM size
         memcpy(ram, saveData, readBytes);
@@ -379,7 +379,7 @@ Byte GBLoadRamFromFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
     return readBytes == ramSize ? GB_CARTRIDGE_SUCCESS : GB_CARTRIDGE_NOSAVE_ERROR;
 }
 
-Byte GBSaveRamForFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
+Byte GBSaveRamForFile(Byte* ram, uint32_t ramSize, const char* filePath) {
     if (ramSize == 0 || ram == NULL) {
         GB_CARTRIDGE_SUCCESS;
     }
@@ -396,7 +396,7 @@ Byte GBSaveRamForFile(Byte* ram, u_int32_t ramSize, const char* filePath) {
     return GB_CARTRIDGE_SUCCESS;
 }
 
-u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize) {
+uint32_t GB_cartridgeRomSize(uint8_t rawRomSize) {
     switch (rawRomSize)
     {
     case 0:
@@ -422,7 +422,7 @@ u_int32_t GB_cartridgeRomSize(u_int8_t rawRomSize) {
     };
 }
 
-u_int32_t GB_cartridgeRamSize(u_int8_t rawRamSize) {
+uint32_t GB_cartridgeRamSize(uint8_t rawRamSize) {
     switch (rawRamSize)
     {
     case 2:

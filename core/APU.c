@@ -16,8 +16,8 @@ bool _GBIsDacOn(GB_device* device, GBSoundChannel channel);
 bool _GBIsMasterAudioOn(GB_device* device, GBSoundChannel channel);
 void _enableChannelIfPossible(GB_device* device, GBSoundChannel channel, Byte value, int regStart, Word lengMax);
 void _extractWaveSample(GB_device* device, bool force);
-u_int16_t _GBChannelPeriod(GB_device* device, int NRx3);
-void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value);
+uint16_t _GBChannelPeriod(GB_device* device, int NRx3);
+void _GBWriteChannelPeriod(GB_device* device, int NRx3, uint16_t value);
 void _disableChannelIfOff(GB_device* device, GBSoundChannel channel);
 void _GB_updateLengthTimer(GB_device* device, GBSoundChannel channel, int regStart, Word max);
 void _handleLenTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, Byte oldValue, int regStart, Word lengMax);
@@ -31,7 +31,7 @@ void _GB_update_LFSR(GB_device* device);
 void _GB_gen_noise_wave(GB_device* device);
 void _triggerCh4(GB_device* device, Byte value);
 
-u_int16_t _squareChannelFrequency(GB_device *device, GBSoundChannel channel);
+uint16_t _squareChannelFrequency(GB_device *device, GBSoundChannel channel);
 void _GBSquareChannelTrigger(GB_device* device, GBSoundChannel channel, Byte value, Byte oldValue);
 
 void _GBChannelTrigger(GB_device* device, GBSoundChannel channel, Byte value, Byte oldValue);
@@ -244,8 +244,8 @@ void _GBCh3Trigger(GB_device* device, Byte value, Byte oldValue)  {
         device->apu->channelReaderCursors[GBSoundCH3] = 0;
         
         // TODO: refactor
-        u_int16_t period = _GBChannelPeriod(device, NR33);
-        u_int32_t periodValue = 2048 - period;
+        uint16_t period = _GBChannelPeriod(device, NR33);
+        uint32_t periodValue = 2048 - period;
         device->apu->channelClockDelay[GBSoundCH3] = periodValue + 2;
     }
 }
@@ -256,7 +256,7 @@ void _ch1SweepTrigger(GB_device* device, GBSoundChannel channel, Byte newValue, 
     }
     Byte step = device->apu->data[NR10] & 0x7;
     Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
-    u_int16_t period = _GBChannelPeriod(device, NR13);
+    uint16_t period = _GBChannelPeriod(device, NR13);
 
     if (newValue & 0x80) { // triggered
         device->apu->ch1SweepEnabled = (pace != 0 || step != 0) ? true : false;
@@ -298,16 +298,16 @@ void _triggerCh1Sweep(GB_device* device, bool checkOnly) {
     Byte step = apu->data[NR10] & 0x7;
     Byte pace = (device->apu->data[NR10] >> 4) & 0x7;
     
-    u_int16_t periodOnTrigger = apu->periodOnTrigger;
+    uint16_t periodOnTrigger = apu->periodOnTrigger;
     device->apu->ch1NegModeUsed = (device->apu->data[NR10] & 0x8) == 0 ? false : true;
 
-    u_int16_t delta = periodOnTrigger >> step;
+    uint16_t delta = periodOnTrigger >> step;
     if ((apu->data[NR10] & 0x8) != 0) {
         // uses two's complement for substraction
         delta = ~delta + 1;
     }
     
-    u_int16_t newP = periodOnTrigger + delta;
+    uint16_t newP = periodOnTrigger + delta;
     
     if (newP > 0x7FF && (apu->data[NR10] & 0x8) == 0) {
         apu->activeChannels[GBSoundCH1] = false;
@@ -400,8 +400,8 @@ void _extractWaveSample(GB_device* device, bool force) {
         apu->channelValues[GBSoundCH3] = sampleValue;
         apu->waveReadclock = device->cpu->divCounter;
         // TODO: refactor
-        u_int16_t period = _GBChannelPeriod(device, NR33);
-        u_int32_t periodValue = 2048 - period; 
+        uint16_t period = _GBChannelPeriod(device, NR33);
+        uint32_t periodValue = 2048 - period; 
         apu->channelClockDelay[GBSoundCH3] = periodValue - 1;
     } else {
         device->apu->channelClockDelay[GBSoundCH3]--;
@@ -409,19 +409,19 @@ void _extractWaveSample(GB_device* device, bool force) {
     }
 }
 
-u_int16_t _squareChannelFrequency(GB_device *device, GBSoundChannel channel) {
+uint16_t _squareChannelFrequency(GB_device *device, GBSoundChannel channel) {
     int nrx3 = NR13 + (channel * 5);
-    u_int16_t period = _GBChannelPeriod(device, nrx3);
+    uint16_t period = _GBChannelPeriod(device, nrx3);
     return (2048 - period);
 }
 
-u_int16_t _channelFrequency(GB_device *device, GBSoundChannel channel, int regStart) {
-    u_int16_t period = _GBChannelPeriod(device, regStart + 3);
+uint16_t _channelFrequency(GB_device *device, GBSoundChannel channel, int regStart) {
+    uint16_t period = _GBChannelPeriod(device, regStart + 3);
     return 131072 / (2048 - period);
 }
 
-u_int16_t _GBChannelPeriod(GB_device* device, int NRx3) {
-    u_int16_t period =  (device->apu->data[NRx3 + 1] & 0x07) << 8 | device->apu->data[NRx3];
+uint16_t _GBChannelPeriod(GB_device* device, int NRx3) {
+    uint16_t period =  (device->apu->data[NRx3 + 1] & 0x07) << 8 | device->apu->data[NRx3];
     return period;
 }
 
@@ -460,7 +460,7 @@ void _GB_gen_noise_wave(GB_device* device) {
         divider = 0.5;
     }
 
-    u_int32_t chFreq = (0x40000 / divider) / (2 << lfsrShift);
+    uint32_t chFreq = (0x40000 / divider) / (2 << lfsrShift);
 
     double freq = (double) chFreq;
 
@@ -567,7 +567,7 @@ void _triggerCh4(GB_device* device, Byte value) {
     apu->lfsrState = 0;
 }
 
-void _GBWriteChannelPeriod(GB_device* device, int NRx3, u_int16_t value) {
+void _GBWriteChannelPeriod(GB_device* device, int NRx3, uint16_t value) {
     device->apu->data[NRx3] = value & 0xFF;
     device->apu->data[NRx3 + 1] = (device->apu->data[NRx3 + 1] & 0xF8) | ((value >> 8) & 0x07);
 }
@@ -593,7 +593,7 @@ void GBApuStep(GB_device* device, Byte cycles) {
         return;
     }
 
-    u_int32_t cyclesPerSample = 1;
+    uint32_t cyclesPerSample = 1;
     GBApu* apu = device->apu;
     if(device->apu->sampleRate != 0) {
         cyclesPerSample = APU_HZ / device->apu->sampleRate;
@@ -700,9 +700,9 @@ void _GB_update_LFSR(GB_device* device) {
     }
     GBApu* apu = device->apu;
 
-    u_int16_t lfsr = apu->lfsrState;
+    uint16_t lfsr = apu->lfsrState;
 
-    u_int16_t bit = (lfsr & 0x1) == ((lfsr >> 1) & 0x1);
+    uint16_t bit = (lfsr & 0x1) == ((lfsr >> 1) & 0x1);
     lfsr = (lfsr & 0x7FFF) | (bit << 15);
     if ((apu->data[NR43] & 0x8) != 0) {
         lfsr = (lfsr & 0xFF7F) | (bit << 7);
