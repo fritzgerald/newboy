@@ -6,4 +6,6 @@
 
 @property (nonatomic, strong) NSWindow *mainWindow;
 
+- (void)startEmulator:(NSString*)romFile;
+
 @end
