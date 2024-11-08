@@ -82,11 +82,6 @@ uint64_t stepCounter = 0;
 
 
 -(CGImageRef)renderFrame {
-    if ((CACurrentMediaTime() - _startTime) >= 1) {
-        _startTime = CACurrentMediaTime();
-        self.frameRate = _frameCounter;
-        _frameCounter = 0;
-    }
     int strIdx = 0;
     char console[100];
     while (_gameboydevice->ppu->frameReady == false){
@@ -94,7 +89,6 @@ uint64_t stepCounter = 0;
         GB_emulationStep(_gameboydevice);
         stepCounter++;
     }
-    _frameCounter++;
     // TODO: Render Frame
     // Frame done
     _gameboydevice->ppu->frameReady = false;
@@ -111,9 +105,9 @@ uint64_t stepCounter = 0;
         bytesPerRow:160 * 4
         bitsPerPixel:32];
     //[self printScreenCRC];
-    
+    CGImageRef cgImage = [img CGImage];
     free(data);
-    return [img CGImage];
+    return cgImage;
 }
 
 // -(CGImageRef)renderBackground {
@@ -212,8 +206,13 @@ uint64_t stepCounter = 0;
     return vertices;
 }
 
-- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
-    CGImageRef frame = [self renderFrame];
+- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer image:(CGImageRef) frame {
+    if ((CACurrentMediaTime() - _startTime) >= 1) {
+        _startTime = CACurrentMediaTime();
+        self.frameRate = _frameCounter;
+        _frameCounter = 0;
+    }
+    _frameCounter++;
     // Create a new command buffer for each render pass to the current drawable.
     id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -250,6 +249,11 @@ uint64_t stepCounter = 0;
     [renderEncoder endEncoding];
     [commandBuffer presentDrawable:currentDrawable];
     [commandBuffer commit];
+}
+
+- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
+    CGImageRef frame = [self renderFrame];
+    [self renderToMetalLayer: metalLayer image: frame];
 }
 
 - (void)drawableResize:(CGSize)drawableSize {

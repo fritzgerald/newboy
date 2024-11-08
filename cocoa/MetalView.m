@@ -43,23 +43,12 @@
 - (void)viewDidMoveToWindow {
     [super viewDidMoveToWindow];
 
-    CADisplayLink *displayLink = [self displayLinkWithTarget:self selector:@selector(renderFrame:)];
-    displayLink.preferredFrameRateRange = CAFrameRateRangeMake(58, 59, 59);
-    [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
-
-    //[self setupCVDisplayLinkForScreen:self.window.screen];
+    [self setupRenderLoop];
     [self resizeDrawable:self.window.screen.backingScaleFactor];
 }
 
 - (void)stopRenderLoop {
-    if(_displayLink)
-    {
-        // Stop the display link BEFORE releasing anything in the view otherwise the display link
-        // thread may call into the view and crash when it encounters something that no longer
-        // exists
-        CVDisplayLinkStop(_displayLink);
-        CVDisplayLinkRelease(_displayLink);
-
+    if(_displaySource) {
         dispatch_source_cancel(_displaySource);
     }
 }
@@ -84,65 +73,28 @@
     [_delegate drawableResize:newSize];
 }
 
-- (BOOL)setupCVDisplayLinkForScreen:(NSScreen*)screen {
+- (void)setupRenderLoop {
+    _displaySource = dispatch_source_create(
+        DISPATCH_SOURCE_TYPE_TIMER, 
+        0, 
+        0,
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)
+    ); 
 
-    // The CVDisplayLink callback, DispatchRenderLoop, never executes
-    // on the main thread. To execute rendering on the main thread, create
-    // a dispatch source using the main queue (the main thread).
-    // DispatchRenderLoop merges this dispatch source in each call
-    // to execute rendering on the main thread.
-    _displaySource = dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, dispatch_get_main_queue());
+    double intervalSeconds = 1/60.0;
+    dispatch_time_t startTime = dispatch_time(DISPATCH_TIME_NOW, 0);
+    uint64_t intervalNanoSeconds = (int64_t)(intervalSeconds * NSEC_PER_SEC);
+    dispatch_source_set_timer(_displaySource, startTime, intervalNanoSeconds, 0);
+
     __weak MetalView* weakSelf = self;
-    dispatch_source_set_event_handler(_displaySource, ^(){
-        @autoreleasepool
-        {
-            [weakSelf render];
-        }
+    dispatch_source_set_event_handler(_displaySource, ^{
+        [weakSelf render];
     });
+
+    // Start the timer
     dispatch_resume(_displaySource);
-
-    CVReturn cvReturn;
-
-    // Create a display link capable of being used with all active displays
-    cvReturn = CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
-
-    if(cvReturn != kCVReturnSuccess) {
-        return NO;
-    }
-
-    // Set DispatchRenderLoop as the callback function and
-    // supply _displaySource as the argument to the callback.
-    // cvReturn = CVDisplayLinkSetOutputCallback(_displayLink, &DispatchRenderLoop, (__bridge void*)_displaySource);
-    
-
-    if(cvReturn != kCVReturnSuccess) {
-        return NO;
-    }
-
-    // Associate the display link with the display on which the
-    // view resides
-    CGDirectDisplayID viewDisplayID =
-        (CGDirectDisplayID) [self.window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntegerValue];;
-
-    cvReturn = CVDisplayLinkSetCurrentCGDisplay(_displayLink, viewDisplayID);
-
-    if(cvReturn != kCVReturnSuccess)
-    {
-        return NO;
-    }
-
-    CVDisplayLinkStart(_displayLink);
-
-    NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
-
-    // Register to be notified when the window closes so that you
-    // can stop the display link
-    [notificationCenter addObserver:self
-                           selector:@selector(windowWillClose:)
-                               name:NSWindowWillCloseNotification
-                             object:self.window];
-
-    return YES;
+    // When you want to stop the timer, you need to suspend the source
+    // dispatch_suspend(dispatchSource);
 }
 
 - (void)render {
@@ -159,8 +111,7 @@
 {
     // Stop the display link when the window is closing since there
     // is no point in drawing something that can't be seen
-    if(notification.object == self.window)
-    {
+    if(notification.object == self.window) {
         CVDisplayLinkStop(_displayLink);
         dispatch_source_cancel(_displaySource);
     }
@@ -181,25 +132,4 @@
     [self resizeDrawable:self.window.screen.backingScaleFactor];
 }
 
-static CFTimeInterval lastUpdate;
-
-// This is the renderer output callback function
-static CVReturn DispatchRenderLoop(CVDisplayLinkRef displayLink,
-                                   const CVTimeStamp* now,
-                                   const CVTimeStamp* outputTime,
-                                   CVOptionFlags flagsIn,
-                                   CVOptionFlags* flagsOut,
-                                   void* displayLinkContext)
-{
-    CFTimeInterval elapsedTime = CACurrentMediaTime() - lastUpdate;
-    if(elapsedTime > (1.0/60)) { // FPS lock to 60 HZ
-        // 'DispatchRenderLoop' is always called on a secondary thread.  Merge the dispatch source
-        // setup for the main queue so that rendering occurs on the main thread
-        __weak dispatch_source_t source = (__bridge dispatch_source_t)displayLinkContext;
-        dispatch_source_merge_data(source, 1);
-        lastUpdate = CACurrentMediaTime();
-    }
-
-    return kCVReturnSuccess;
-}
 @end

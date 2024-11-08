@@ -18,6 +18,7 @@
     GameRenderer* _renderer;
     GBJoypadState joypad;
     NSString* _romPath;
+    dispatch_source_t _renderDispatch;
 }
 
 -(id)initWithRomFilePath:(NSString *) path {
@@ -133,10 +134,15 @@
     self.debugTextField = textField;
     textField.textColor = [NSColor redColor];
     textField.stringValue = @"120 fps";
-
 }
 
--(void)viewWillDisappear {
+- (void)viewWillAppear {
+    [super viewWillAppear];
+
+    [self becomeFirstResponder];
+}
+
+- (void)viewWillDisappear {
     [super viewWillDisappear];
 
     [_renderer disposeRessources];
