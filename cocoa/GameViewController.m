@@ -1,12 +1,13 @@
+#import <AppKit/AppKit.h>
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#import <Carbon/Carbon.h>
+
 #import "GameViewController.h"
-#include <Foundation/NSString.h>
-#include <stdbool.h>
-#include <AppKit/AppKit.h>
-#include <Metal/Metal.h>
+
 #import "GBView.h"
 #import "GameRenderer.h"
-#import <Carbon/Carbon.h>
-#import "core/MMU.h"
+#include "core/MMU.h"
 
 @interface GameViewController() <MetalViewDelegate>
 
@@ -16,9 +17,10 @@
 
 @implementation GameViewController {
     GameRenderer* _renderer;
-    GBJoypadState joypad;
+    GBJoypadState _joypad;
     NSString* _romPath;
     dispatch_source_t _renderDispatch;
+    id _keyUPMonitor, _keyDownMonitor;
 }
 
 -(id)initWithRomFilePath:(NSString *) path {
@@ -38,7 +40,7 @@
 -(void)viewDidLoad {
     [super viewDidLoad];
 
-    joypad = (GBJoypadState) { false, false, false, false, false, false, false, false };
+    _joypad = (GBJoypadState) { false, false, false, false, false, false, false, false };
 
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
 
@@ -57,68 +59,9 @@
                                       drawablePixelFormat:view.metalLayer.pixelFormat
                                       romPath:_romPath];
 
-    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^ NSEvent * (NSEvent * event){
+    [self monitorKeyEvents];
 
-        switch (event.keyCode) {
-            case kVK_UpArrow:
-                self->joypad.upPressed = true;
-                break;
-            case kVK_DownArrow:
-                self->joypad.downPressed = true;
-                break;
-            case kVK_LeftArrow:
-                self->joypad.leftPressed = true;
-                break;
-            case kVK_RightArrow:
-                self->joypad.rightPressed = true;
-                break;
-            case kVK_ANSI_Z:
-                self->joypad.aPressed = true;
-                break;
-            case kVK_ANSI_X:
-                self->joypad.bPressed = true;
-                break;
-            case kVK_Return:
-                self->joypad.startPressed = true;
-                break;
-            case kVK_Escape:
-                self->joypad.selectPressed = true;
-                break;
-
-        }
-        return nil;
-    }];
-
-    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:^ NSEvent * (NSEvent * event){
-
-        switch (event.keyCode) {
-            case kVK_UpArrow:
-                self->joypad.upPressed = false;
-                break;
-            case kVK_DownArrow:
-                self->joypad.downPressed = false;
-                break;
-            case kVK_LeftArrow:
-                self->joypad.leftPressed = false;
-                break;
-            case kVK_RightArrow:
-                self->joypad.rightPressed = false;
-                break;
-            case kVK_ANSI_Z:
-                self->joypad.aPressed = false;
-                break;
-            case kVK_ANSI_X:
-                self->joypad.bPressed = false;
-                break;
-            case kVK_Return:
-                self->joypad.startPressed = false;
-                break;
-            case kVK_Escape:
-                self->joypad.selectPressed = false;
-                break;
-        }
-        return nil;
-    }];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onFocusChanges:) name:NSWindowDidBecomeKeyNotification object:nil];
 
     NSTextField* textField = [[NSTextField alloc] initWithFrame:CGRectZero];
     [textField setBezeled:NO];
@@ -136,26 +79,141 @@
     textField.stringValue = @"120 fps";
 }
 
+- (void)monitorKeyEvents {
+    __weak GameViewController* weakSelf = self;
+    // _keyDownMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^ NSEvent * (NSEvent * event){
+    //     [weakSelf keyDown: event];
+    //     return event;
+    // }];
+
+    // _keyUPMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:^ NSEvent * (NSEvent * event){
+    //     [weakSelf keyUp:event];
+    //     return event;
+    // }];
+}
+
+- (void)stopMonitoringKeyEvents {
+    if (_keyDownMonitor) {
+        [NSEvent removeMonitor:_keyDownMonitor];
+        _keyDownMonitor = nil;
+    }
+    if (_keyUPMonitor) {
+        [NSEvent removeMonitor:_keyUPMonitor];
+        _keyUPMonitor = nil;
+    }
+}
+
+-(void)onFocusChanges:(NSNotification*) notification {
+    if (notification.object == self.view.window) {
+        dispatch_async(dispatch_get_main_queue(), ^ {
+            [self becomeFirstResponder];
+            [self monitorKeyEvents];
+            NSLog(@"game %@ active", _romPath);
+        });
+        
+    } else {
+        dispatch_async(dispatch_get_main_queue(), ^ {
+            [self stopMonitoringKeyEvents];
+            NSLog(@"game %@ deactivated", _romPath);
+        });
+    }
+}
+
 - (void)viewWillAppear {
     [super viewWillAppear];
-
-    [self becomeFirstResponder];
 }
 
 - (void)viewWillDisappear {
     [super viewWillDisappear];
+}
 
-    [_renderer disposeRessources];
+- (void)keyUp:(NSEvent *)event {
+    [super keyUp: event];
+
+    switch (event.keyCode) {
+        case kVK_UpArrow:
+            _joypad.upPressed = false;
+            break;
+        case kVK_DownArrow:
+            _joypad.downPressed = false;
+            break;
+        case kVK_LeftArrow:
+            _joypad.leftPressed = false;
+            break;
+        case kVK_RightArrow:
+            _joypad.rightPressed = false;
+            break;
+        case kVK_ANSI_Z:
+            _joypad.aPressed = false;
+            break;
+        case kVK_ANSI_X:
+            _joypad.bPressed = false;
+            break;
+        case kVK_Return:
+            _joypad.startPressed = false;
+            break;
+        case kVK_Escape:
+            _joypad.selectPressed = false;
+            break;
+    }
+}
+
+-(BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (void)keyDown:(NSEvent *)event {
+    switch (event.keyCode) {
+        case kVK_UpArrow:
+            _joypad.upPressed = true;
+            break;
+        case kVK_DownArrow:
+            _joypad.downPressed = true;
+            break;
+        case kVK_LeftArrow:
+            _joypad.leftPressed = true;
+            break;
+        case kVK_RightArrow:
+            _joypad.rightPressed = true;
+            break;
+        case kVK_ANSI_Z:
+            _joypad.aPressed = true;
+            break;
+        case kVK_ANSI_X:
+            _joypad.bPressed = true;
+            break;
+        case kVK_Return:
+            _joypad.startPressed = true;
+            break;
+        case kVK_Escape:
+            _joypad.selectPressed = true;
+            break;
+        default:
+            [super keyDown: event];
+            break;
+    }
+}
+
+-(IBAction)moveUp:(id)sender {
+    NSLog(@"up");
+}
+
+-(IBAction)moveDown:(id)sender {
+
 }
 
 - (void)renderToMetalLayer:(nonnull CAMetalLayer *)metalLayer {
-    _renderer.joypad = joypad;
+    _renderer.joypad = _joypad;
     [_renderer renderToMetalLayer: metalLayer];
     _debugTextField.stringValue = [NSString stringWithFormat:@"%ld FPS", _renderer.frameRate];
 }
 
 - (void)drawableResize:(CGSize)size {
     [_renderer drawableResize:size];
+}
+
+- (void)dealloc {
+    [_renderer disposeRessources];
 }
 
 @end
