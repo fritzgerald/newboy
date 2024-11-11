@@ -20,7 +20,6 @@
     GBJoypadState _joypad;
     NSString* _romPath;
     dispatch_source_t _renderDispatch;
-    id _keyUPMonitor, _keyDownMonitor;
 }
 
 -(id)initWithRomFilePath:(NSString *) path {
@@ -59,64 +58,24 @@
                                       drawablePixelFormat:view.metalLayer.pixelFormat
                                       romPath:_romPath];
 
-    [self monitorKeyEvents];
+    [self addFPSLabel];
+}
 
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onFocusChanges:) name:NSWindowDidBecomeKeyNotification object:nil];
-
+- (void)addFPSLabel {
     NSTextField* textField = [[NSTextField alloc] initWithFrame:CGRectZero];
     [textField setBezeled:NO];
     [textField setDrawsBackground:NO];
     [textField setEditable:NO];
     [textField setSelectable:NO];
     textField.translatesAutoresizingMaskIntoConstraints = NO;
-    [view addSubview: textField];
+    [self.view addSubview: textField];
     [NSLayoutConstraint activateConstraints:@[
-        [textField.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
-        [textField.topAnchor constraintEqualToAnchor:view.topAnchor]
+        [textField.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [textField.topAnchor constraintEqualToAnchor:self.view.topAnchor]
     ]];
     self.debugTextField = textField;
     textField.textColor = [NSColor redColor];
     textField.stringValue = @"120 fps";
-}
-
-- (void)monitorKeyEvents {
-    __weak GameViewController* weakSelf = self;
-    // _keyDownMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^ NSEvent * (NSEvent * event){
-    //     [weakSelf keyDown: event];
-    //     return event;
-    // }];
-
-    // _keyUPMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:^ NSEvent * (NSEvent * event){
-    //     [weakSelf keyUp:event];
-    //     return event;
-    // }];
-}
-
-- (void)stopMonitoringKeyEvents {
-    if (_keyDownMonitor) {
-        [NSEvent removeMonitor:_keyDownMonitor];
-        _keyDownMonitor = nil;
-    }
-    if (_keyUPMonitor) {
-        [NSEvent removeMonitor:_keyUPMonitor];
-        _keyUPMonitor = nil;
-    }
-}
-
--(void)onFocusChanges:(NSNotification*) notification {
-    if (notification.object == self.view.window) {
-        dispatch_async(dispatch_get_main_queue(), ^ {
-            [self becomeFirstResponder];
-            [self monitorKeyEvents];
-            NSLog(@"game %@ active", _romPath);
-        });
-        
-    } else {
-        dispatch_async(dispatch_get_main_queue(), ^ {
-            [self stopMonitoringKeyEvents];
-            NSLog(@"game %@ deactivated", _romPath);
-        });
-    }
 }
 
 - (void)viewWillAppear {
@@ -192,14 +151,6 @@
             [super keyDown: event];
             break;
     }
-}
-
--(IBAction)moveUp:(id)sender {
-    NSLog(@"up");
-}
-
--(IBAction)moveDown:(id)sender {
-
 }
 
 - (void)renderToMetalLayer:(nonnull CAMetalLayer *)metalLayer {
