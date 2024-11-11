@@ -1,4 +1,6 @@
+#include "cocoa/GameViewController.h"
 #import <AppKit/AppKit.h>
+#include <AppKit/NSWindow.h>
 #import <Foundation/Foundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "AppDelegate+Menu.h"
@@ -7,6 +9,8 @@
 static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
 
 @interface AppDelegate (PrivateMenu)
+
+@property(readonly) GameViewController* _Nullable currentGameViewController;
 
 - (NSArray<NSString*>*)getRecentFiles;
 - (void) clearRecentFileList: (id)sender;
@@ -75,12 +79,26 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
     return fileMenuItem;
 }
 
+- (NSMenuItem*)buildEmulationMenuItem {
+    NSMenuItem* emuMenuItem = [NSMenuItem new];
+
+    NSMenu *emulationMenu = [[NSMenu alloc] initWithTitle: @"Emulation"];
+    [emuMenuItem setSubmenu: emulationMenu];
+
+    [emulationMenu addItemWithTitle:@"Save ram" action:@selector(saveRamData:) keyEquivalent:@"s"];
+
+    return emuMenuItem;
+}
+
 -(void)buildNewMenu {
     NSMenu* mainMenu = [NSMenu new];
     [[NSApplication sharedApplication] setMenu: mainMenu];
 
     [mainMenu addItem: [self buildAppMenuItem]];
     [mainMenu addItem: [self buildFileMenuItem]];
+    if (self.currentGameViewController != nil) {
+        [mainMenu addItem: [self buildEmulationMenuItem]];
+    }
 }
 
 -(void) onRecentFile: (id)sender {
@@ -97,7 +115,8 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
     openPanel.canChooseDirectories = NO;
     openPanel.allowsMultipleSelection = NO;
     openPanel.allowedContentTypes = @[ 
-        [UTType typeWithFilenameExtension: @"gb"]
+        [UTType typeWithFilenameExtension: @"gb"],
+        [UTType typeWithFilenameExtension: @"gbc"]
     ];
 
     //this launches the dialogue
@@ -121,6 +140,19 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
 
 - (void)closeWindow: (id)sender {
 
+}
+
+- (GameViewController* _Nullable)currentGameViewController {
+    if ([[NSApplication sharedApplication] keyWindow] != nil &&
+        [[NSApplication sharedApplication].keyWindow.contentViewController isKindOfClass:[GameViewController class]]
+    ) {
+        return (GameViewController*)[NSApplication sharedApplication].keyWindow.contentViewController;
+    }
+    return nil;
+}
+
+- (void)saveRamData: (id)selector {
+    [self.currentGameViewController saveRam];
 }
 
 @end

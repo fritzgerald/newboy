@@ -1,3 +1,4 @@
+#include "cocoa/AppDelegate.h"
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -165,6 +166,10 @@
 
 - (void)dealloc {
     [_renderer disposeRessources];
+}
+
+- (void)saveRam {
+    [_renderer saveRam];
 }
 
 @end

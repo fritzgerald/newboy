@@ -5,4 +5,6 @@
 
 -(id)initWithRomFilePath:(NSString *) path;
 
+- (void)saveRam;
+
 @end

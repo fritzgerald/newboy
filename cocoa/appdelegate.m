@@ -16,6 +16,7 @@
 
     [window setContentSize:NSMakeSize(600, 600)];
     [window makeKeyAndOrderFront:nil];
+    [self buildNewMenu];
 }
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification {

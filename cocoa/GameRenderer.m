@@ -84,13 +84,14 @@ uint64_t stepCounter = 0;
 -(CGImageRef)renderFrame {
     int strIdx = 0;
     char console[100];
-    while (_gameboydevice->ppu->frameReady == false){
-        GBUpdateJoypadState(_gameboydevice, self.joypad);
-        GB_emulationStep(_gameboydevice);
-        stepCounter++;
+    @synchronized (self){
+        while (_gameboydevice->ppu->frameReady == false){
+            GBUpdateJoypadState(_gameboydevice, self.joypad);
+            GB_emulationStep(_gameboydevice);
+            stepCounter++;
+        }
     }
-    // TODO: Render Frame
-    // Frame done
+
     _gameboydevice->ppu->frameReady = false;
     uint8_t* data =  GB_ppu_gen_frame_bitmap(_gameboydevice);
     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
@@ -270,7 +271,13 @@ uint64_t stepCounter = 0;
 
 -(void)disposeRessources {
     [_audioClient stop];
-    GBRomSave(_romCartdrige);
+    [self saveRam];
+}
+
+- (void)saveRam {
+    @synchronized (self) {
+        GBRomSave(_romCartdrige);
+    }
 }
 
 @end

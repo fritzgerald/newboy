@@ -7,5 +7,7 @@
 
 - (void)buildNewMenu;
 - (void)addRecentFile:(NSString*) path;
+- (NSMenuItem*)buildAppMenuItem;
+- (NSMenuItem*)buildFileMenuItem;
 
 @end
