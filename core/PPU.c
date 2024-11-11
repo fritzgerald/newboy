@@ -2,7 +2,6 @@
 #include "PPU.h"
 #include "MMU.h"
 #include "Device.h"
-#include <Security/cssmconfig.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -359,6 +358,13 @@ void GB_deviceResetPPU(GB_device* device) {
     ppu->controlBit = 0;
     ppu->dmaValue = 0;
     ppu->frameReady = false;
+    uint32_t defaultPalete[4] = { 0xFFFFFFFF, 0x606060FF, 0x202020FF, 0x000000FF };
+
+    GBSetDMGColorPalette(device, defaultPalete);
+}
+
+void GBSetDMGColorPalette(GB_device* device, uint32_t* palette) {
+    memcpy(device->ppu->dmgColorPalette, palette, 4 * sizeof(uint32_t));
 }
 
 unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId) {
@@ -369,15 +375,15 @@ unsigned int GB_ppu_getBackgroundPaletteColor(GB_ppu* ppu, GB_tile_pixel_value t
     GBNonCBGColors color = ppu->bgpIdColors[tileId & 0x3];
     switch (color) {
         case GBNonCBGColorWhite:
-            return 0xFFFFFFFF;
+            return ppu->dmgColorPalette[0];
         case GBNonCBGColorLightGray:
-            return 0x606060FF;
+            return ppu->dmgColorPalette[1];
         case GBNonCBGColorDarkGray:
-            return 0x202020FF;
+            return ppu->dmgColorPalette[2];
         case GBNonCBGColorBlack:
-            return 0x000000FF;
+            return ppu->dmgColorPalette[3];
         default:
-            return 0xFFFFFFFF; // white by default
+            return ppu->dmgColorPalette[0]; // white by default
     }
 }
 
@@ -387,15 +393,15 @@ unsigned int GB_ppu_getObjPaletteColor(GB_ppu* ppu, GB_tile_pixel_value tileId, 
     GBNonCBGColors color = palette[tileId & 0x3];
     switch (color) {
         case GBNonCBGColorWhite:
-            return 0xFFFFFF00;
+            return ppu->dmgColorPalette[0] & 0xFFFFFF00;
         case GBNonCBGColorLightGray:
-            return 0x606060FF;
+            return ppu->dmgColorPalette[1];
         case GBNonCBGColorDarkGray:
-            return 0x202020FF;
+            return ppu->dmgColorPalette[2];
         case GBNonCBGColorBlack:
-            return 0x000000FF;
+            return ppu->dmgColorPalette[3];
         default:
-            return 0xFFFFFFFF; // white by default
+            return ppu->dmgColorPalette[0] & 0xFFFFFF00; // white by default
     }
 }
 
@@ -410,7 +416,7 @@ unsigned char* GB_ppu_gen_tile_bitmap_data(GB_ppu* ppu, int tileIndex) {
             unsigned int color = GB_ppu_getBackgroundPaletteColor(ppu, value);
             int p = ((height - (row + 1)) * width + column) * 4;
             // convert RGB to BGR
-            pixels[p + 0] = (color >> 8) & 0xFF; //blue
+            pixels[p + 0] = (color >> 8) & 0xFF; //blue 
             pixels[p + 1] = (color >> 16) & 0xFF; //green
             pixels[p + 2] = (color >> 24) & 0xFF; //red
             pixels[p + 3] = color & 0xFF; //Alpha
@@ -445,7 +451,7 @@ void GB_updateBackgroundPixel(GB_device* device, Byte line, Byte xScan) {
     uint32_t pixelY = (line + scy) % 256;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
-    uint32 bgPixelOffset = (tiley * 32) + tilex;
+    uint32_t bgPixelOffset = (tiley * 32) + tilex;
 
     uint16_t tileIndex = _GB_backgroundTileindexWithOffset(device, bgPixelOffset);
     uint32_t column = pixelX % 8;
@@ -469,7 +475,7 @@ void GB_updateWindowPixel(GB_device* device, Byte line, Byte xScan) {
     uint32_t pixelY = line - scy;
     Byte tilex = pixelX / 8;
     Byte tiley = pixelY / 8;
-    uint32 bgPixelOffset = (tiley * 32) + tilex;
+    uint32_t bgPixelOffset = (tiley * 32) + tilex;
 
     uint16_t tileIndex = _GB_tileindexWithOffset(device, bgPixelOffset, true);
     uint32_t column = pixelX % 8;
@@ -614,9 +620,9 @@ uint8_t* GB_ppu_gen_frame_bitmap(GB_device* device) {
             color = GB_ppu_getBackgroundPaletteColor(device->ppu, bgColorId);
         }
         int p = i * 4;
-        pixels[p + 0] = (color >> 8) & 0xFF; //blue
+        pixels[p + 0] = (color >> 24) & 0xFF; //red 
         pixels[p + 1] = (color >> 16) & 0xFF; //green
-        pixels[p + 2] = (color >> 24) & 0xFF; //red
+        pixels[p + 2] = (color >> 8) & 0xFF; //blue
         pixels[p + 3] = color & 0xFF; //Alpha
     }
     return pixels;

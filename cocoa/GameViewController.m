@@ -172,4 +172,18 @@
     [_renderer saveRam];
 }
 
+- (void)setDmgPaletteId:(NSInteger)dmgPaletteId {
+    _dmgPaletteId = dmgPaletteId;
+    uint32_t greyScalePalete[4] = { 0xFFFFFFFF, 0x606060FF, 0x202020FF, 0x000000FF };
+    uint32_t dmgGreenPalete[4] = { 0x8cad28FF, 0x6c9421FF, 0x426b29FF, 0x214231FF };
+    switch (dmgPaletteId) {
+        case 0:
+            [_renderer setDMGColorPalette:greyScalePalete];
+            break;
+        case 1:
+            [_renderer setDMGColorPalette:dmgGreenPalete];
+            break;
+    }
+}
+
 @end

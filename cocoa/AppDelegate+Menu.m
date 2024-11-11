@@ -87,6 +87,27 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
 
     [emulationMenu addItemWithTitle:@"Save ram" action:@selector(saveRamData:) keyEquivalent:@"s"];
 
+    NSMenuItem* dmgPalette = [NSMenuItem new];
+    dmgPalette.title = @"DMG palette";
+    [emulationMenu addItem:dmgPalette];
+
+    NSMenu *dmgPaletteSubMenu = [[NSMenu alloc] initWithTitle:@"DMG palette"];
+    [dmgPalette setSubmenu:dmgPaletteSubMenu];
+
+    NSMenuItem* greyScaleItem = [[NSMenuItem alloc] initWithTitle:@"Grey scales" action:@selector(setDMGColorPalette:) keyEquivalent:@""];
+    [greyScaleItem setRepresentedObject: @(0)];
+    [dmgPaletteSubMenu addItem:greyScaleItem];
+
+    NSMenuItem* dmgItem = [[NSMenuItem alloc] initWithTitle:@"DMG green" action:@selector(setDMGColorPalette:) keyEquivalent:@""];
+    [dmgItem setRepresentedObject: @(1)];
+    [dmgPaletteSubMenu addItem:dmgItem];
+
+    if (self.currentGameViewController.dmgPaletteId == 0) {
+        [dmgPaletteSubMenu setSelectedItems: @[greyScaleItem]];
+    } else if (self.currentGameViewController.dmgPaletteId == 1) {
+        [dmgPaletteSubMenu setSelectedItems: @[dmgItem]];
+    }
+
     return emuMenuItem;
 }
 
@@ -153,6 +174,19 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
 
 - (void)saveRamData: (id)selector {
     [self.currentGameViewController saveRam];
+}
+
+- (void)setDMGColorPalette: (id)sender {
+    if (![sender isKindOfClass:[NSMenuItem class]]) {
+        return;
+    }
+    NSMenuItem* menu = sender;
+    if (![menu.representedObject isKindOfClass:[NSNumber class]]) {
+        return;
+    }
+    NSNumber* value = menu.representedObject;
+    [self.currentGameViewController setDmgPaletteId:value.integerValue];
+    [menu.parentItem.submenu setSelectedItems: @[menu]];
 }
 
 @end

@@ -1,4 +1,6 @@
 #import "GameRenderer.h"
+#include <stdint.h>
+#include "core/PPU.h"
 #include "core/RomMBC.h"
 #include "core/MMU.h"
 #include <stdlib.h>
@@ -101,7 +103,7 @@ uint64_t stepCounter = 0;
         bitsPerSample:8 
         samplesPerPixel: 4 
         hasAlpha:YES isPlanar:NO
-        colorSpaceName:NSDeviceRGBColorSpace 
+        colorSpaceName:NSCalibratedRGBColorSpace 
         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
         bytesPerRow:160 * 4
         bitsPerPixel:32];
@@ -277,6 +279,12 @@ uint64_t stepCounter = 0;
 - (void)saveRam {
     @synchronized (self) {
         GBRomSave(_romCartdrige);
+    }
+}
+
+- (void)setDMGColorPalette:(uint32_t*)palette {
+    @synchronized (self){
+        GBSetDMGColorPalette(_gameboydevice, palette);
     }
 }
 

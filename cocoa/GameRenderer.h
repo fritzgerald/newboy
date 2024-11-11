@@ -20,4 +20,6 @@
 
 - (void)saveRam;
 
+- (void)setDMGColorPalette:(uint32_t*)palette;
+
 @end
