@@ -12,7 +12,7 @@
 uint32_t GB_cartridgeRomSize(uint8_t rawRomSize);
 uint32_t GB_cartridgeRamSize(uint8_t rawRamSize);
 Byte GBLoadRamFromFile(Byte* ram, uint32_t ramSize, const char* filePath);
-Byte GBSaveRamForFile(Byte* ram, uint32_t ramSize, const char* filePath);
+Byte GBSaveRamToFile(Byte* ram, uint32_t ramSize, const char* filePath);
 GBMbcType GBMbcTypeFromCode(Byte cartridgeCode);
 
 Byte GBReadFromMBC1Rom(GB_device* device, GBRomMBC* cartridge, Word addr);
@@ -269,7 +269,7 @@ GBRomMBC* GBNewRom(const char* filePath) {
 }
 
 void GBRomSave(GBRomMBC* rom) {
-    GBSaveRamForFile(rom->ram, rom->ramSize, rom->filePath);
+    GBSaveRamToFile(rom->ram, rom->ramSize, rom->filePath);
 }
 
 Byte GBLoadRomFromFile(GBRomMBC *cartridge, const char *filePath) {
@@ -379,7 +379,7 @@ Byte GBLoadRamFromFile(Byte* ram, uint32_t ramSize, const char* filePath) {
     return readBytes == ramSize ? GB_CARTRIDGE_SUCCESS : GB_CARTRIDGE_NOSAVE_ERROR;
 }
 
-Byte GBSaveRamForFile(Byte* ram, uint32_t ramSize, const char* filePath) {
+Byte GBSaveRamToFile(Byte* ram, uint32_t ramSize, const char* filePath) {
     if (ramSize == 0 || ram == NULL) {
         GB_CARTRIDGE_SUCCESS;
     }

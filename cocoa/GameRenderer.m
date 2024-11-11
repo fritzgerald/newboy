@@ -1,4 +1,6 @@
 #import "GameRenderer.h"
+#include <stdint.h>
+#include "core/PPU.h"
 #include "core/RomMBC.h"
 #include "core/MMU.h"
 #include <stdlib.h>
@@ -82,21 +84,16 @@ uint64_t stepCounter = 0;
 
 
 -(CGImageRef)renderFrame {
-    if ((CACurrentMediaTime() - _startTime) >= 1) {
-        _startTime = CACurrentMediaTime();
-        self.frameRate = _frameCounter;
-        _frameCounter = 0;
-    }
     int strIdx = 0;
     char console[100];
-    while (_gameboydevice->ppu->frameReady == false){
-        GBUpdateJoypadState(_gameboydevice, self.joypad);
-        GB_emulationStep(_gameboydevice);
-        stepCounter++;
+    @synchronized (self){
+        while (_gameboydevice->ppu->frameReady == false){
+            GBUpdateJoypadState(_gameboydevice, self.joypad);
+            GB_emulationStep(_gameboydevice);
+            stepCounter++;
+        }
     }
-    _frameCounter++;
-    // TODO: Render Frame
-    // Frame done
+
     _gameboydevice->ppu->frameReady = false;
     uint8_t* data =  GB_ppu_gen_frame_bitmap(_gameboydevice);
     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
@@ -106,14 +103,14 @@ uint64_t stepCounter = 0;
         bitsPerSample:8 
         samplesPerPixel: 4 
         hasAlpha:YES isPlanar:NO
-        colorSpaceName:NSDeviceRGBColorSpace 
+        colorSpaceName:NSCalibratedRGBColorSpace 
         bitmapFormat:NSBitmapFormatThirtyTwoBitLittleEndian 
         bytesPerRow:160 * 4
         bitsPerPixel:32];
     //[self printScreenCRC];
-    
+    CGImageRef cgImage = [img CGImage];
     free(data);
-    return [img CGImage];
+    return cgImage;
 }
 
 // -(CGImageRef)renderBackground {
@@ -212,8 +209,13 @@ uint64_t stepCounter = 0;
     return vertices;
 }
 
-- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
-    CGImageRef frame = [self renderFrame];
+- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer image:(CGImageRef) frame {
+    if ((CACurrentMediaTime() - _startTime) >= 1) {
+        _startTime = CACurrentMediaTime();
+        self.frameRate = _frameCounter;
+        _frameCounter = 0;
+    }
+    _frameCounter++;
     // Create a new command buffer for each render pass to the current drawable.
     id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -252,6 +254,11 @@ uint64_t stepCounter = 0;
     [commandBuffer commit];
 }
 
+- (void)renderToMetalLayer:(nonnull CAMetalLayer*)metalLayer {
+    CGImageRef frame = [self renderFrame];
+    [self renderToMetalLayer: metalLayer image: frame];
+}
+
 - (void)drawableResize:(CGSize)drawableSize {
     _viewportSize.x = drawableSize.width;
     _viewportSize.y = drawableSize.height;
@@ -266,7 +273,19 @@ uint64_t stepCounter = 0;
 
 -(void)disposeRessources {
     [_audioClient stop];
-    GBRomSave(_romCartdrige);
+    [self saveRam];
+}
+
+- (void)saveRam {
+    @synchronized (self) {
+        GBRomSave(_romCartdrige);
+    }
+}
+
+- (void)setDMGColorPalette:(uint32_t*)palette {
+    @synchronized (self){
+        GBSetDMGColorPalette(_gameboydevice, palette);
+    }
 }
 
 @end

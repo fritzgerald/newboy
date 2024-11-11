@@ -16,6 +16,10 @@
 
 - (void)drawableResize:(CGSize)drawableSize;
 
--(void)disposeRessources;
+- (void)disposeRessources;
+
+- (void)saveRam;
+
+- (void)setDMGColorPalette:(uint32_t*)palette;
 
 @end

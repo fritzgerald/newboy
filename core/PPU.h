@@ -89,7 +89,7 @@ struct GB_ppu_s {
     GB_tile_pixel_value frameBuffer[2][160 * 144];
     bool objPriorities[160 * 144];
     bool objPalettes0[160 * 144];
-    
+    uint32_t dmgColorPalette[4];
 };
 
 void GB_deviceResetPPU(GB_device* device);
@@ -98,6 +98,7 @@ Byte GB_deviceVramRead(GB_device* device, Word addr);
 void GB_deviceVramWrite(GB_device* device, Word addr, Byte data);
 void GB_devicePPUIOWrite(GB_device* device, Word addr, Byte data);
 Byte GB_devicePPUIORead(GB_device* device, Word addr);
+void GBSetDMGColorPalette(GB_device* device, uint32_t* palette);
 
 // TODO: just for tests. remove later
 void GB_ppu_gen_tile_bitmap(GB_ppu* ppu, int tileIndex);

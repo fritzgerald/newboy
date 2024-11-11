@@ -8,8 +8,8 @@
 
 @implementation GBView
 
-- (BOOL)performKeyEquivalent:(NSEvent *)event {
-    return  YES;
+- (BOOL)acceptsFirstResponder {
+    return YES;
 }
 
 @end
