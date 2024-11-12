@@ -24,17 +24,18 @@ void GBWriteToMBC2Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
 Byte GBReadFromMBC3Rom(GB_device* device, GBRomMBC* cartridge, Word addr);
 void GBWriteToMBC3Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte value);
 
+void GBWriteToMBC5Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte value);
+
 Byte GBReadFromRom(GB_device* device, GBRomMBC* cartridge, Word addr) {
         switch (cartridge->mbcType) {
         case GBMbcNone:
-        case GBMbc1:
+        case GBMbc1: case GBMbc5:
             return GBReadFromMBC1Rom(device, cartridge, addr);
         case GBMbc2:
             return GBReadFromMBC2Rom(device, cartridge, addr);
         case GBMbcMMM01:
         case GBMbc3:
             return GBReadFromMBC3Rom(device, cartridge, addr);
-        case GBMbc5:
         case GBMbc6:
         case GBMbc7:
         case GBMbcCamera:
@@ -61,6 +62,8 @@ void GBWriteToRom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte value)
             GBWriteToMBC3Rom(device, cartridge, addr, value);
             break;
         case GBMbc5:
+            GBWriteToMBC5Rom(device, cartridge, addr, value);
+            break;
         case GBMbc6:
         case GBMbc7:
         case GBMbcCamera:
@@ -245,6 +248,27 @@ void GBWriteToMBC3Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
                     cartridge->ram[(0x2000 * cartridge->ramBankIndex) + (addr & 0x1FFF)] = value;
                 }
             }
+            break;
+    }
+}
+
+void GBWriteToMBC5Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte value) {
+    switch (addr & 0xF000) {
+        case 0x0000: case 0x1000: 
+            GBWriteToMBC1Rom(device, cartridge, addr, value);
+            break;
+        case 0x2000:
+            cartridge->romBankIndex = (cartridge->romBankIndex & 0x100) | value;
+            break;
+        case 0x3000:
+            cartridge->romBankIndex = (value ? 0x100 : 0) | (cartridge->romBankIndex & 0xFF);
+            break;
+        case 0x4000: case 0x5000:
+            // TODO: handle rumble
+            cartridge->ramBankIndex = value & 0x0F;
+            break;
+        case 0xA000: case 0xB000:
+            GBWriteToMBC1Rom(device, cartridge, addr, value);
             break;
     }
 }

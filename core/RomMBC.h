@@ -26,7 +26,7 @@ struct GBRomMBC_s {
     char* filePath;
     Byte cartridgeTypeCode;
     GBMbcType mbcType;
-    Byte romBankIndex;
+    Word romBankIndex;
     Byte ramBankIndex;
     Byte rom0BankIndex;
     bool isAdvanceBankModeEnabled;
