@@ -80,7 +80,7 @@ Byte GBReadFromMBC1Rom(GB_device* device, GBRomMBC* cartridge, Word addr) {
         // MARK: External RAM
         case 0xA000: case 0xB000:
             if (cartridge->isRamEnabled && cartridge->ram) {
-                return cartridge->ram[(0x2000 * cartridge->ramBankIndex) + addr & 0x1FFF]; // TODO: handle Switch
+                return cartridge->ram[(0x2000 * cartridge->ramBankIndex) + (addr & 0x1FFF)];
             }
             return 0xFF;
     }
@@ -103,7 +103,6 @@ void GBWriteToMBC1Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
             if (cartridge->isAdvanceBankModeEnabled) {
                 cartridge->rom0BankIndex = (cartridge->romBankIndex & highMask);
             }
-            // GBprintf("b0: %02x, b:%02x\n", cartridge->rom0BankIndex, cartridge->romBankIndex);
             break;
         case 0x4000: case 0x5000: 
             cartridge->ramBankIndex = value & 0x03;
@@ -111,23 +110,18 @@ void GBWriteToMBC1Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
             if (cartridge->isAdvanceBankModeEnabled) {
                 cartridge->rom0BankIndex = (value & 0x03) << highMaskShift;
             }
-            // GBprintf("b0: %02x, b:%02x\n", cartridge->rom0BankIndex, cartridge->romBankIndex);
             break;
         case 0x6000: case 0x7000:
             cartridge->isAdvanceBankModeEnabled = value & 0x1 ? true : false;
             if (cartridge->isAdvanceBankModeEnabled == false) {
                 cartridge->rom0BankIndex = 0;
-                // GBprintf("Advance Mode off\n");
             } else {
                 cartridge->rom0BankIndex = (cartridge->romBankIndex & highMask);
-                // GBprintf("Advance Mode on\n");
             }
-            
-            // GBprintf("b0: %02x, b:%02x\n", cartridge->rom0BankIndex, cartridge->romBankIndex);
             break;
         case 0xA000: case 0xB000:
             if(cartridge->isRamEnabled && cartridge->ram) {
-                cartridge->ram[(0x2000 * cartridge->ramBankIndex) + addr & 0x1FFF] = value; // TODO: wrong should be handle By MBCs
+                cartridge->ram[(0x2000 * cartridge->ramBankIndex) + (addr & 0x1FFF)] = value;
             }
         default:
             break;
@@ -238,6 +232,7 @@ void GBWriteToMBC3Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
                     cartridge->rtcValue = 0;
                 }
             }
+            break;
         case 0xA000: case 0xB000:
             if(cartridge->isRamEnabled) {
                 if (cartridge->rtcRegister == 0x0C) {
@@ -246,8 +241,8 @@ void GBWriteToMBC3Rom(GB_device* device, GBRomMBC* cartridge, Word addr, Byte va
                         cartridge->rtcOverflow = false;
                     }
                     
-                } else if(cartridge->ram){
-                    cartridge->ram[(0x2000 * cartridge->ramBankIndex) + addr & 0x1FFF] = value;
+                } else if(cartridge->ram) {
+                    cartridge->ram[(0x2000 * cartridge->ramBankIndex) + (addr & 0x1FFF)] = value;
                 }
             }
             break;
