@@ -54,8 +54,6 @@ struct GB_mmu_s {
 
     GBCartridgeDef* cartridge;
 
-    Byte sb;
-    Byte sc;
     Byte div;
     bool isTimaEnabled;
     GBTimaClockCycles timaClockCycles;
@@ -79,13 +77,6 @@ struct GB_mmu_s {
 
     //Rom data
     Byte cartridgeType;
-
-    // WIP
-    int32_t nextEvent;
- 	int32_t period;
- 	int remainingBits;
-
- 	uint8_t pendingSB;
 };
 
 Byte GB_deviceReadByte(GB_device*, Word);
@@ -95,6 +86,5 @@ void GB_deviceWriteWord(GB_device*, Word, Word);
 void GB_deviceResetMMU(GB_device* device);
 void GB_interrupt_request(GB_device* device, Byte ir);
 void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad);
-int32_t GBProcessMemEvents(GB_device* device, Byte cycles);
 void GBLoadBios(GB_device* device);
 void GB_emulationLoadCartdrige(GB_device* device, GBCartridgeDef* cartridge);

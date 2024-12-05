@@ -17,11 +17,26 @@
     [window setContentSize:NSMakeSize(600, 600)];
     [window makeKeyAndOrderFront:nil];
     [self buildNewMenu];
+    [self.trackedWindows addObject:[[GBWeakWindowReference alloc] initWith:window]];
 }
 
 - (void) applicationDidFinishLaunching:(NSNotification *)notification {
     [NSApp activate];
+    self.trackedWindows = [NSMutableArray new];
     [self buildNewMenu];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(buildNewMenu) name:NSWindowDidBecomeKeyNotification object:nil];
+}
+
+@end
+
+@implementation GBWeakWindowReference
+
+-(id)initWith:(NSWindow*) window {
+    self = [super init];
+    if(self) {
+        self.weakWindow = window;
+    }
+    return self;
 }
 
 @end

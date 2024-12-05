@@ -1,10 +1,12 @@
+#include "cocoa/AppDelegate.h"
 #include "cocoa/GameViewController.h"
 #import <AppKit/AppKit.h>
+#include <MacTypes.h>
+#include <objc/NSObject.h>
 #include <AppKit/NSWindow.h>
 #import <Foundation/Foundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "AppDelegate+Menu.h"
-
 
 static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
 
@@ -79,17 +81,9 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
     return fileMenuItem;
 }
 
-- (NSMenuItem*)buildEmulationMenuItem {
-    NSMenuItem* emuMenuItem = [NSMenuItem new];
-
-    NSMenu *emulationMenu = [[NSMenu alloc] initWithTitle: @"Emulation"];
-    [emuMenuItem setSubmenu: emulationMenu];
-
-    [emulationMenu addItemWithTitle:@"Save ram" action:@selector(saveRamData:) keyEquivalent:@"s"];
-
+- (NSMenuItem*)dmgPalette {
     NSMenuItem* dmgPalette = [NSMenuItem new];
     dmgPalette.title = @"DMG palette";
-    [emulationMenu addItem:dmgPalette];
 
     NSMenu *dmgPaletteSubMenu = [[NSMenu alloc] initWithTitle:@"DMG palette"];
     [dmgPalette setSubmenu:dmgPaletteSubMenu];
@@ -107,6 +101,42 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
     } else if (self.currentGameViewController.dmgPaletteId == 1) {
         [dmgPaletteSubMenu setSelectedItems: @[dmgItem]];
     }
+    return dmgPalette;
+}
+
+- (NSMenuItem*)emulatorLinkPalette {
+    NSMenuItem* linkMenuItem = [NSMenuItem new];
+    linkMenuItem.title = @"Link cable";
+
+    NSMenu *localLinkSubMenu = [[NSMenu alloc] initWithTitle:@"NewBoy"];
+    [linkMenuItem setSubmenu:localLinkSubMenu];
+
+    NSMenuItem* linkNone = [[NSMenuItem alloc] initWithTitle:@"None" action:@selector(disconnectGameControllers:) keyEquivalent:@""];
+    [localLinkSubMenu addItem:linkNone];
+
+    for (GBWeakWindowReference* winref in self.trackedWindows) {
+        if (winref.weakWindow == nil || winref.weakWindow.contentViewController == self.currentGameViewController) {
+            continue;
+        }
+
+        GameViewController* gameVC = (GameViewController*) winref.weakWindow.contentViewController;
+        NSMenuItem* emulationItem = [[NSMenuItem alloc] initWithTitle:gameVC.romPath action:@selector(linkGameControllers:) keyEquivalent:@""];
+        [emulationItem setRepresentedObject: winref];
+        [localLinkSubMenu addItem:emulationItem];
+    }
+    return linkMenuItem;
+}
+
+- (NSMenuItem*)buildEmulationMenuItem {
+    NSMenuItem* emuMenuItem = [NSMenuItem new];
+
+    NSMenu *emulationMenu = [[NSMenu alloc] initWithTitle: @"Emulation"];
+    [emuMenuItem setSubmenu: emulationMenu];
+
+    [emulationMenu addItemWithTitle:@"Save ram" action:@selector(saveRamData:) keyEquivalent:@"s"];
+
+    [emulationMenu addItem:[self dmgPalette]];
+    [emulationMenu addItem:[self emulatorLinkPalette]];
 
     return emuMenuItem;
 }
@@ -187,6 +217,25 @@ static NSString *GBRecentFileUserDefaultKey = @"GB_recent_files";
     NSNumber* value = menu.representedObject;
     [self.currentGameViewController setDmgPaletteId:value.integerValue];
     [menu.parentItem.submenu setSelectedItems: @[menu]];
+}
+
+-(void)linkGameControllers: (id)sender {
+    if (![sender isKindOfClass:[NSMenuItem class]]) {
+        return;
+    }
+    NSMenuItem* menu = sender;
+    if (![menu.representedObject isKindOfClass:[GBWeakWindowReference class]]) {
+        return;
+    }
+    GBWeakWindowReference* winRef = (GBWeakWindowReference*) menu.representedObject;
+    GameViewController* vcToLink = (GameViewController*) winRef.weakWindow.contentViewController;
+    self.currentGameViewController.linkGameViewController = vcToLink;
+    vcToLink.linkGameViewController = self.currentGameViewController;
+}
+
+-(void)disconnectGameControllers: (id)sender {
+    self.currentGameViewController.linkGameViewController.linkGameViewController = nil;
+    self.currentGameViewController.linkGameViewController = nil;
 }
 
 @end

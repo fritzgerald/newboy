@@ -5,3 +5,4 @@
 #include "CPU.h"
 #include "PPU.h"
 #include "RomMBC.h"
+#include "Serial.h"

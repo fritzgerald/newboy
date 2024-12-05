@@ -3,5 +3,5 @@
 -F/Library/Frameworks 
 -mmacosx-version-min=14.0
 -isysroot 
-/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk 
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.sdk 
 -IAppleCommon

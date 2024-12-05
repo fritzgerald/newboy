@@ -1,5 +1,6 @@
 #include "cocoa/AppDelegate.h"
 #import <AppKit/AppKit.h>
+#include <objc/objc.h>
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <Carbon/Carbon.h>
@@ -10,6 +11,8 @@
 #import "GameRenderer.h"
 #include "core/MMU.h"
 
+void _onConnection(GB_device *device, Byte data, void* infos);
+
 @interface GameViewController() <MetalViewDelegate>
 
 @property(weak, nonatomic) NSTextField* debugTextField;
@@ -19,14 +22,13 @@
 @implementation GameViewController {
     GameRenderer* _renderer;
     GBJoypadState _joypad;
-    NSString* _romPath;
     dispatch_source_t _renderDispatch;
 }
 
 -(id)initWithRomFilePath:(NSString *) path {
     self = [super init];
     if (self) {
-        _romPath = path;
+        self.romPath = path;
     }
     return self;
 }
@@ -58,6 +60,8 @@
     _renderer = [[GameRenderer alloc] initWithMetalDevice:device
                                       drawablePixelFormat:view.metalLayer.pixelFormat
                                       romPath:_romPath];
+
+    GB_serial_register_master_event(_renderer.gameboydevice, _onConnection, (__bridge void *)self);
 
     [self addFPSLabel];
 }
@@ -186,4 +190,24 @@
     }
 }
 
+- (GB_device*) gameboydevice {
+    return _renderer.gameboydevice;
+}
+
 @end
+
+void _onConnection(GB_device *device, Byte data, void* infos) {
+    GameViewController* gameVC = (__bridge GameViewController*) infos;
+    // dispatch_async(dispatch_get_main_queue(), ^{
+            if (gameVC.linkGameViewController == nil) {
+            return;
+        }
+        GameViewController* linkVC = gameVC.linkGameViewController;
+
+        linkVC.gameboydevice->serialBus->sc |= 0x80;
+        linkVC.gameboydevice->serialBus->incomingSB = gameVC.gameboydevice->serialBus->sb;
+        gameVC.gameboydevice->serialBus->incomingSB = linkVC.gameboydevice->serialBus->sb;
+        GBSerialprocessData(linkVC.gameboydevice);
+    // });
+    
+}

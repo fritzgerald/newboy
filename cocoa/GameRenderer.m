@@ -34,7 +34,7 @@ uint64_t stepCounter = 0;
     
     NSUInteger _frameNum;
     id<MTLTexture> _texture;
-    GB_device* _gameboydevice;
+    // GB_device* _gameboydevice;
     GBRomMBC* _romCartdrige;
     GBAudioClient *_audioClient;
     NSString* _romPath;
@@ -76,7 +76,7 @@ uint64_t stepCounter = 0;
 
     [self createRenderPipeline:drawabklePixelFormat];
 
-    [_audioClient start];
+    // [_audioClient start];
     _startTime = CACurrentMediaTime();
 
     return self;
@@ -87,15 +87,15 @@ uint64_t stepCounter = 0;
     int strIdx = 0;
     char console[100];
     @synchronized (self){
-        while (_gameboydevice->ppu->frameReady == false){
-            GBUpdateJoypadState(_gameboydevice, self.joypad);
-            GB_emulationStep(_gameboydevice);
+        while (self.gameboydevice->ppu->frameReady == false){
+            GBUpdateJoypadState(self.gameboydevice, self.joypad);
+            GB_emulationStep(self.gameboydevice);
             stepCounter++;
         }
     }
 
-    _gameboydevice->ppu->frameReady = false;
-    uint8_t* data =  GB_ppu_gen_frame_bitmap(_gameboydevice);
+    self.gameboydevice->ppu->frameReady = false;
+    uint8_t* data =  GB_ppu_gen_frame_bitmap(self.gameboydevice);
     NSBitmapImageRep* img = [[NSBitmapImageRep alloc] 
         initWithBitmapDataPlanes: &data 
         pixelsWide:160 

@@ -1,12 +1,13 @@
 #import <Metal/Metal.h>
 #include <objc/NSObject.h>
 #import <QuartzCore/CAMetalLayer.h>
-#import "core/MMU.h"
+#import "core/Newboy.h"
 
 @interface GameRenderer: NSObject
 
 @property NSInteger frameRate;
 @property GBJoypadState joypad;
+@property GB_device* gameboydevice;
 
 - (nonnull instancetype)initWithMetalDevice:(nonnull id<MTLDevice>)device
                         drawablePixelFormat:(MTLPixelFormat)drawabklePixelFormat

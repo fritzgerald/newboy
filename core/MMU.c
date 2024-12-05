@@ -1,3 +1,4 @@
+#include "core/Serial.h"
 #include "definitions.h"
 #include "Device.h"
 #include "PPU.h"
@@ -12,8 +13,8 @@
 #include <string.h>
 #include <time.h>
 
-Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr);
-void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value);
+Byte GB_mmu_read_FF00(GB_device* device, Word addr);
+void GB_mmu_write_FF00(GB_device* device, Word addr, Byte value);
 Byte _GBJoypadByteRepresentation(GB_mmu* mem);
 
 Byte GB_deviceReadByte(GB_device* device, Word addr) {
@@ -75,7 +76,7 @@ Byte GB_deviceReadByte(GB_device* device, Word addr) {
 			            // TODO: handle I/O read here
                         switch (addr & 0xF0) {
                             case 0x00:
-                                return GB_mmu_read_FF00(mem, addr);
+                                return GB_mmu_read_FF00(device, addr);
                             case 0x10: case 0x20: case 0x30:
                                 return GBReadAPURegister(device, addr);
                             case 0x40:
@@ -153,7 +154,7 @@ void GB_deviceWriteByte(GB_device* device, Word addr, Byte value) {
                         // TODO: Handle I/O Ranges
                         switch (addr & 0xF0) {
                             case 0x00:
-                                GB_mmu_write_FF00(mem, addr, value);
+                                GB_mmu_write_FF00(device, addr, value);
                                 break;
                             case 0x10: case 0x20: case 0x30:
                                 GBWriteToAPURegister(device, addr, value);
@@ -173,16 +174,17 @@ void GB_deviceWriteWord(GB_device* device, Word addr, Word value) {
     GB_deviceWriteByte(device, addr + 1, value >> 8);
 }
 
-Byte GB_mmu_read_FF00(GB_mmu* mem, Word addr) {
+Byte GB_mmu_read_FF00(GB_device* device, Word addr) {
+    GB_mmu* mem = device->mmu;
     int localAddress = addr & 0xFF;
     
     switch (localAddress) {
         case 0x00:
             return _GBJoypadByteRepresentation(mem);
         case 0x01:
-            return mem->sb;
+            return GB_serial_read(device, addr);
         case 0x02:
-            return  mem->sc;
+            return GB_serial_read(device, addr);
         case 0x04:
             return mem->div;
         case 0x05:
@@ -215,7 +217,8 @@ GBTimaClockCycles GBTimaClockCyclesFromInt(int value) {
     }
 }
 
-void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
+void GB_mmu_write_FF00(GB_device* device, Word addr, Byte value) {
+    GB_mmu* mem = device->mmu;
     int localAddress = addr & 0xFF;
     switch (localAddress) {
         case 0x00:
@@ -223,15 +226,10 @@ void GB_mmu_write_FF00(GB_mmu* mem, Word addr, Byte value) {
             mem->joypadButtonSelected = (value & 0x20) ? false : true;
             break;
         case 0x01:
-            mem->sb = value;
+            GB_serial_write(device, addr, value);
             break;
         case 0x02:
-            mem->sc = value;
-            mem->period = 0x1000;
-            if (value & 0x80) {
-                mem->nextEvent = 0x1000;
-                // mem->remainingBits = 8;
-            }
+            GB_serial_write(device, addr, value);
             break;
         case 0x04:
             mem->div = 0;
@@ -274,8 +272,6 @@ void GB_deviceResetMMU(GB_device* device) {
     memset(mem->wRam, 0, 0x2000);
     memset(mem->zRam, 0, 0x80);
 
-    mem->sb = 0xFF;
-    mem->sc = 0;
     mem->div = 0;
     mem->isTimaEnabled = false;
     mem->timaClockCycles = GBTimaClockCycles4;
@@ -286,8 +282,6 @@ void GB_deviceResetMMU(GB_device* device) {
     mem->KEY1 = 0;
     mem->timaCounter = 0;
     mem->joypadState = (GBJoypadState) { false, false, false, false, false, false, false, false };
-    mem->pendingSB = 0xFF;
-    mem->remainingBits = 8;
 }
 
 Byte _GBJoypadByteRepresentation(GB_mmu* mem) {
@@ -326,33 +320,6 @@ void GBUpdateJoypadState(GB_device* device, GBJoypadState joypad) {
 
 void GB_interrupt_request(GB_device *device, unsigned char ir) {
     device->mmu->interruptRequest = (device->mmu->interruptRequest | ir) & 0x1f;
-}
-
-int32_t GBProcessMemEvents(GB_device* device, Byte cycles) {
-    if ((device->mmu->sc & 0x80) == 0) {
-        return 0;
-    }
-    if (device->mmu->nextEvent != 2147483647) {
- 		device->mmu->nextEvent -= cycles;
- 	}
-
- 	if (device->mmu->nextEvent <= 0) {
- 		--device->mmu->remainingBits;
- 		device->mmu->sb &= ~(8 >> device->mmu->remainingBits);
- 		device->mmu->sb |= device->mmu->pendingSB & ~(8 >> device->mmu->remainingBits);
- 		if (!device->mmu->remainingBits) {
-            GB_interrupt_request(device, GB_INTERRUPT_FLAG_SERIAL);
- 			device->mmu->sc = device->mmu->sc & 0x80;
- 			device->mmu->nextEvent = 2147483647;
-            if (device->mmu->pendingSB == 0xff) {
-                device->mmu->pendingSB = 0x01;
-                device->mmu->remainingBits = 8;
-            }
- 		} else {
- 			device->mmu->nextEvent += device->mmu->period;
- 		}
- 	}
- 	return device->mmu->nextEvent;
 }
 
 void GB_emulationLoadCartdrige(GB_device* device, GBCartridgeDef* cartridge) {

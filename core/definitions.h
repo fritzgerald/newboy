@@ -36,3 +36,6 @@ typedef struct GBSample_s GBSample;
 
 struct GBRomMBC_s;
 typedef struct GBRomMBC_s GBRomMBC;
+
+struct GBSerial_s;
+typedef struct GBSerial_s GBSerial;

@@ -4,8 +4,12 @@
 #include "PPU.h"
 #include "MMU.h"
 #include "APU.h"
+#include "Serial.h"
 #include <stdlib.h>
 #include <string.h>
+
+    // Update TIMA if enabled
+const uint16_t timaMask[] = {0x80, 0x02, 0x8, 0x20};
 
 GB_device* GB_newDevice() {
     GB_device* device = malloc(sizeof(GB_device));
@@ -48,10 +52,22 @@ GB_device* GB_newDevice() {
     }
     memset(apu, 0, sizeof(GBApu));
 
+    GBSerial* serialBus = malloc(sizeof(GBSerial));
+    if (serialBus == NULL) {
+        free(device);
+        free(cpu);
+        free(mmu);
+        free(ppu);
+        free(apu);
+        return NULL;
+    }
+    memset(serialBus, 0, sizeof(GBSerial));
+
     device->cpu = cpu;
     device->mmu = mmu;
     device->ppu = ppu;
     device->apu = apu;
+    device->serialBus = serialBus;
 
     GB_reset(device);
 
@@ -59,6 +75,8 @@ GB_device* GB_newDevice() {
 }
 
 void GB_freeDevice(GB_device* device) {
+    free(device->serialBus);
+    free(device->apu);
     free(device->cpu);
     free(device->mmu);
     free(device->ppu);
@@ -74,9 +92,6 @@ void GB_reset(GB_device* device) {
 void GB_updateDivCounter(GB_device* device, Byte cycles) {
     GB_cpu* cpu = device->cpu;
     GB_mmu* mmu = device->mmu;
-
-    // Update TIMA if enabled
-    uint16_t timaMask[] = {0x80, 0x02, 0x8, 0x20};
 
     uint16_t bitTracked = timaMask[mmu->timaClockCycles];
     uint16_t ticks = cycles / 4;
@@ -114,7 +129,7 @@ void GB_emulationStep(GB_device* device) {
 void GB_emulationAdvance(GB_device* device, Byte cycles) {
     GB_update_tima_status(device);
     GB_updateDivCounter(device, cycles);
-    GBProcessMemEvents(device, cycles);
     GB_devicePPUstep(device, cycles);
     GBApuStep(device, cycles);
+    GBSerialUpdate(device, cycles);
 }

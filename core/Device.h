@@ -1,12 +1,15 @@
 #pragma once
 
 #include "definitions.h"
+#include <stdbool.h>
 
 struct GB_device_s {
+    bool isCGB;
     GB_cpu* cpu;
     GB_mmu* mmu;
     GB_ppu* ppu;
     GBApu*  apu;
+    GBSerial* serialBus;
 };
 
 GB_device* GB_newDevice();
