@@ -1,5 +1,6 @@
 #include "cocoa/AppDelegate.h"
 #import <AppKit/AppKit.h>
+#include <stdbool.h>
 #include <objc/objc.h>
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -198,16 +199,12 @@ void _onConnection(GB_device *device, Byte data, void* infos);
 
 void _onConnection(GB_device *device, Byte data, void* infos) {
     GameViewController* gameVC = (__bridge GameViewController*) infos;
-    // dispatch_async(dispatch_get_main_queue(), ^{
-            if (gameVC.linkGameViewController == nil) {
-            return;
-        }
-        GameViewController* linkVC = gameVC.linkGameViewController;
+    if (gameVC.linkGameViewController == nil) {
+        return;
+    }
 
-        linkVC.gameboydevice->serialBus->sc |= 0x80;
-        linkVC.gameboydevice->serialBus->incomingSB = gameVC.gameboydevice->serialBus->sb;
-        gameVC.gameboydevice->serialBus->incomingSB = linkVC.gameboydevice->serialBus->sb;
-        GBSerialprocessData(linkVC.gameboydevice);
-    // });
-    
+    GameViewController* linkVC = gameVC.linkGameViewController;
+    linkVC.gameboydevice->serialBus->incomingBit = getSerialBit(gameVC.gameboydevice);
+    gameVC.gameboydevice->serialBus->incomingBit = getSerialBit(linkVC.gameboydevice);
+    GBSerialprocessData(linkVC.gameboydevice);
 }

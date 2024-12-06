@@ -10,6 +10,7 @@ struct GB_device_s {
     GB_ppu* ppu;
     GBApu*  apu;
     GBSerial* serialBus;
+    char* name;
 };
 
 GB_device* GB_newDevice();

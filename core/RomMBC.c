@@ -352,6 +352,7 @@ Byte GBLoadRomFromFile(GBRomMBC *cartridge, const char *filePath) {
     cartridge->filePath = (char *) malloc( strlen(filePath) + 1 );
     strcpy(cartridge->filePath, filePath);
 
+    strcpy(cartridge->title, title);
     cartridge->romSize = romSize;
     cartridge->ramSize = ramSize;
     cartridge->isMbc1M = false;

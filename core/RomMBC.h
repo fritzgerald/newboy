@@ -39,6 +39,7 @@ struct GBRomMBC_s {
     bool rtcTrigger;
     Byte rtcValue;
     bool rtcOverflow;
+    char title[0x10];
 };
 
 GBRomMBC* GBNewRom(const char* filePath);

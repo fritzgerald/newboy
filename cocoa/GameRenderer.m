@@ -1,4 +1,5 @@
 #import "GameRenderer.h"
+#include <string.h>
 #include <stdint.h>
 #include "core/PPU.h"
 #include "core/RomMBC.h"
@@ -56,6 +57,9 @@ uint64_t stepCounter = 0;
     cartDef->read = (GBCartrigeReadFunc)GBReadFromRom;
     cartDef->write = (GBCartridgeWriteFunc)GBWriteToRom;
     GB_emulationLoadCartdrige(_gameboydevice, cartDef);
+    char *newName = malloc(0x10);
+    strcpy(newName, _romCartdrige->title);
+    _gameboydevice->name = newName;
 
     _audioClient = [[GBAudioClient alloc] initWithSampleRate:48000 andDevice:_gameboydevice];
 

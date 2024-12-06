@@ -10,12 +10,13 @@ struct GBSerial_s {
     Byte sb;
     Byte sc;
     Byte bitsToSend;
-    Byte incomingSB;
+    bool incomingBit;
     uint32_t clock;
     void* masterEventInfo;
     GBSerialMasterClock onMasterReady;
 };
 
+bool getSerialBit(GB_device* device);
 void GBSerialprocessData(GB_device* device);
 void GBSerialDataEvent(GB_device* device);
 void GBSerialUpdate(GB_device* device, Byte cycles);
