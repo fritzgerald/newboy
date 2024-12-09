@@ -1,5 +1,7 @@
 #include "cocoa/AppDelegate.h"
 #import <AppKit/AppKit.h>
+#include <Foundation/NSObjCRuntime.h>
+#include <MacTypes.h>
 #include <stdbool.h>
 #include <objc/objc.h>
 #import <Foundation/Foundation.h>
@@ -65,6 +67,13 @@ void _onConnection(GB_device *device, Byte data, void* infos);
     GB_serial_register_master_event(_renderer.gameboydevice, _onConnection, (__bridge void *)self);
 
     [self addFPSLabel];
+}
+
+-(void) _onConnection:(GB_device *)device {
+    GameViewController* linkVC = self.linkGameViewController;
+    linkVC.gameboydevice->serialBus->incomingBit = getSerialBit(self.gameboydevice);
+    self.gameboydevice->serialBus->incomingBit = getSerialBit(linkVC.gameboydevice);
+    GBSerialprocessData(linkVC.gameboydevice);
 }
 
 - (void)addFPSLabel {
@@ -202,9 +211,5 @@ void _onConnection(GB_device *device, Byte data, void* infos) {
     if (gameVC.linkGameViewController == nil) {
         return;
     }
-
-    GameViewController* linkVC = gameVC.linkGameViewController;
-    linkVC.gameboydevice->serialBus->incomingBit = getSerialBit(gameVC.gameboydevice);
-    gameVC.gameboydevice->serialBus->incomingBit = getSerialBit(linkVC.gameboydevice);
-    GBSerialprocessData(linkVC.gameboydevice);
+    [gameVC _onConnection:gameVC.gameboydevice];
 }

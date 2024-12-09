@@ -80,7 +80,7 @@ uint64_t stepCounter = 0;
 
     [self createRenderPipeline:drawabklePixelFormat];
 
-    // [_audioClient start];
+    [_audioClient start];
     _startTime = CACurrentMediaTime();
 
     return self;

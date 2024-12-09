@@ -8,7 +8,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-const uint16_t clockMask[] = {0x80, 0x02};
+#define TRANSFERT_DELAY_TIME 0x4000
+const uint16_t ticksPerEvents[] = {0x200, 0x04};
 
 int _GBSerialClockMaskIndex(GB_device* device) {
     if (device->isCGB == false) {
@@ -20,7 +21,7 @@ int _GBSerialClockMaskIndex(GB_device* device) {
 bool getSerialBit(GB_device* device) {
     GBSerial* serial = device->serialBus;
     if((serial->sc & 0x80) == 0 && (serial->sc & 0x01) == 1) {
-        return false;
+        return true;
     }
     return (serial->sb & 0x80) ? true : false;
 }
@@ -31,12 +32,12 @@ void GBSerialprocessData(GB_device* device) {
     serial->sb = serial->sb << 1;
     serial->sb |= serial->incomingBit;
     serial->bitsToSend++;
+    serial->incomingBit = false;
     if (serial->bitsToSend == 8) {
-        GBprintf("transfer completed\n");
-        GBprintf("%s Serial: sb = %02x\n", device->name, serial->sb);
         serial->bitsToSend = 0;
         serial->sc = serial->sc & 0x03;
         GB_interrupt_request(device, GB_INTERRUPT_FLAG_SERIAL);
+        serial->transferDelay = TRANSFERT_DELAY_TIME;
     }
 }
 
@@ -57,13 +58,11 @@ void GB_serial_write(GB_device* device, Word addr, Byte value) {
     switch (addr) {
         case 0xFF01:
             device->serialBus->sb = value;
-            GBprintf("%s Serial: sb = %02x\n", device->name, value);
             break;
         case 0xFF02:
             device->serialBus->sc = value;
-            GBprintf("%s Serial: sc = %02x\n", device->name, value);
             if ((value & 0x80) != 0 && (value & 0x01) == 1) {
-                device->serialBus->clock = 0;
+                device->serialBus->clock = ticksPerEvents[_GBSerialClockMaskIndex(device)];
             }
             break;
         default:
@@ -83,23 +82,24 @@ Byte GB_serial_read(GB_device* device, Word addr) {
 }
 
 void GBSerialUpdate(GB_device* device, Byte cycles) {
-    if ((device->serialBus->sc & 0x80) == 0 || (device->serialBus->sc & 0x1) == 0) {
+    if ((device->serialBus->sc & 0x80) == 0 || (device->serialBus->sc & 0x1) == 0 || device->serialBus->clock == 0) {
         return;
     }
 
-    uint16_t bitTracked = clockMask[_GBSerialClockMaskIndex(device)];
     Byte ticks = cycles / 4;
     GBSerial* serial = device->serialBus;
     
     for (int i = 0; i < ticks; i++) {
-        // update clock
-        uint32_t newClock = device->serialBus->clock + 1;
-        uint32_t triggers = device->serialBus->clock & ~newClock;
-
-        device->serialBus->clock = newClock;
-
-        if ((triggers & bitTracked)) {
+        // The gameboy that is using internal clock should always execute a small delay between each transfer,
+        // in order to ensure that the opponent gameboy has enough time to prepare itself for the next transfer
+        if (serial->transferDelay != 0) {
+            serial->transferDelay--;
+            continue;
+        }
+        device->serialBus->clock--;
+        if (device->serialBus->clock == 0) {
             GBSerialDataEvent(device);
+            device->serialBus->clock = ticksPerEvents[_GBSerialClockMaskIndex(device)];
         }
     }
 }
