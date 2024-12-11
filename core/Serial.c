@@ -83,6 +83,8 @@ Byte GB_serial_read(GB_device* device, Word addr) {
 
 void GBSerialUpdate(GB_device* device, Byte cycles) {
     if (device->serialBus->transferDelay > 0) {
+        // The gameboy that is using internal clock should always execute a small delay between each transfer,
+        // in order to ensure that the opponent gameboy has enough time to prepare itself for the next transfer
         device->serialBus->transferDelay -= cycles;
         return;
     }
@@ -95,8 +97,6 @@ void GBSerialUpdate(GB_device* device, Byte cycles) {
     GBSerial* serial = device->serialBus;
     
     for (int i = 0; i < ticks; i++) {
-        // The gameboy that is using internal clock should always execute a small delay between each transfer,
-        // in order to ensure that the opponent gameboy has enough time to prepare itself for the next transfer
         device->serialBus->clock--;
         if (device->serialBus->clock == 0) {
             GBSerialDataEvent(device);
