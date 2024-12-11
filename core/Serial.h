@@ -12,7 +12,7 @@ struct GBSerial_s {
     Byte bitsToSend;
     bool incomingBit;
     uint32_t clock;
-    uint32_t transferDelay;
+    int32_t transferDelay;
     void* masterEventInfo;
     GBSerialMasterClock onMasterReady;
 };
